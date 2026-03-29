@@ -1,126 +1,86 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "./api/config"; 
+// Hapus useAuthState kalau kamu cuma pakai LocalStorage + Firestore tanpa Firebase Auth (Email/Pass)
+// import { useAuthState } from "react-firebase-hooks/auth"; 
+// import { auth } from "./api/config"; 
 
-// Components & Pages
-import Intro from "./component/Intro"; // Pastikan folder 'component' (tanpa s)
 import RegisterPortal from "./pages/RegisterPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
-import Library from "./pages/Libary"; // Cek apakah filenya 'Libary.jsx' atau 'Library.jsx'
-import Quiz from "./pages/Quiz"; // ERROR UTAMA: Pastikan file 'Quiz.jsx' ADA di folder pages
-import About from "./pages/About";
-import AdminPanel from "./pages/AdminPanel";
-import AdminAuth from "./pages/AdminAuth"; // Import file yang baru kamu buat
-import Navbar from "./component/Navbar";
-
-// Staff Data
-import { EAS_STAFF_LIST } from "./api/staff";
+import Library from "./pages/Libary"; // Pastikan filenya 'Libary.jsx' (typo di nama file)
+import Quiz from "./pages/Quiz"; 
+import AdminAuth from "./pages/AdminAuth"; // Halaman Login Admin yang ada PDF-nya
+import AdminPanel from "./pages/AdminPanel"; // Dashboard Admin
 
 // --- 🛡️ PROTECTED ROUTE SYSTEM ---
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const [user, loading] = useAuthState(auth);
-  const localUser = JSON.parse(localStorage.getItem("eas_user") || "{}");
-  const isVerified = localStorage.getItem("eas_verified") === "true";
   const location = useLocation();
+  
+  // FIX: Sesuaikan dengan key yang di-save di RegisterPortal
+  const localUser = JSON.parse(localStorage.getItem("eas_user_data") || "null");
+  const isVerified = localStorage.getItem("eas_verified") === "true";
+  const isAdmin = localStorage.getItem("eas_admin_token") === "SUPER_ADMIN_GRANTED_2026";
 
-  if (loading) return (
-    <div className="h-screen bg-[#00050d] flex items-center justify-center">
-      <div className="text-blue-500 font-black animate-pulse tracking-widest text-xs uppercase">Connecting to EAS Satellite...</div>
-    </div>
-  );
-
-  if (!user && Object.keys(localUser).length === 0) {
+  // 1. Jika tidak ada data user sama sekali, lempar ke Register
+  if (!localUser && location.pathname !== "/admin-login") {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  if (!isVerified && location.pathname !== "/access-portal") {
+  // 2. Jika sudah daftar tapi belum verifikasi ID Card, paksa ke Access Portal
+  if (localUser && !isVerified && location.pathname !== "/access-portal" && !isAdmin) {
     return <Navigate to="/access-portal" replace />;
   }
 
-  if (adminOnly) {
-    const staff = EAS_STAFF_LIST[localUser?.nama?.toLowerCase()];
-    if (!staff || staff.level < 1) {
-      alert("AKSES DITOLAK: Area khusus Petinggi!");
-      return <Navigate to="/" replace />;
-    }
+  // 3. Jika ini rute Admin, cek token admin
+  if (adminOnly && !isAdmin) {
+    alert("AKSES DITOLAK: Area khusus Petinggi!");
+    return <Navigate to="/admin-login" replace />;
   }
 
   return children;
 };
 
-// --- 🚀 MAIN APP COMPONENT ---
 function App() {
-  const [showIntro, setShowIntro] = useState(true);
-  const [user] = useAuthState(auth);
-  const localUser = localStorage.getItem("eas_user");
-
-  const handleVerified = () => {
-    localStorage.setItem("eas_verified", "true");
-  };
-
-  useEffect(() => {
-    const introDone = localStorage.getItem("intro_viewed");
-    if (introDone) setShowIntro(false);
-  }, []);
-
-  const handleIntroFinish = () => {
-    localStorage.setItem("intro_viewed", "true");
-    setShowIntro(false);
-  };
-
   return (
     <Router>
-      <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500">
-        
-        {showIntro && <Intro onFinish={handleIntroFinish} />}
+      <div className="min-h-screen bg-[#00050d] text-white">
+        <Routes>
+          {/* PUBLIC ROUTES */}
+          <Route path="/register" element={<RegisterPortal />} />
+          
+          {/* LOGIN ADMIN (Tanpa Protection biar bisa diakses) */}
+          <Route path="/admin-login" element={
+            <AdminAuth onAuthSuccess={() => window.location.href="/admin-dashboard"} />
+          } />
 
-        <div className={showIntro ? "hidden" : "block"}>
-          <Routes>
-            <Route path="/register" element={<RegisterPortal />} />
-            
-            <Route path="/access-portal" element={
-              <ProtectedRoute>
-                <AccessPortal onVerified={handleVerified} />
-              </ProtectedRoute>
-            } />
+          {/* PROTECTED ROUTES */}
+          <Route path="/access-portal" element={
+            <ProtectedRoute>
+              <AccessPortal />
+            </ProtectedRoute>
+          } />
 
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/library" element={
-              <ProtectedRoute>
-                <Library />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/quiz" element={
-              <ProtectedRoute>
-                <Quiz />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/about" element={
-              <ProtectedRoute>
-                <About />
-              </ProtectedRoute>
-            } />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/quiz" element={
+            <ProtectedRoute>
+              <Quiz />
+            </ProtectedRoute>
+          } />
 
-            <Route path="/admin" element={
-              <ProtectedRoute adminOnly={true}>
-                <AdminPanel />
-              </ProtectedRoute>
-            } />
+          <Route path="/admin-dashboard" element={
+            <ProtectedRoute adminOnly={true}>
+              <AdminPanel />
+            </ProtectedRoute>
+          } />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-
-          {(user || localUser) && !showIntro && <Navbar />}
-        </div>
+          {/* FALLBACK */}
+          <Route path="*" element={<Navigate to="/register" replace />} />
+        </Routes>
       </div>
     </Router>
   );
