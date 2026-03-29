@@ -1,34 +1,24 @@
-import React from "react"; // Fix: Mencegah 'React is not defined' crash
+import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { auth } from "../api/config";
-import { useAuthState } from "react-firebase-hooks/auth";
 
 const ProtectedRoute = ({ children, requireID = true }) => {
-  const [user, loading] = useAuthState(auth);
   const location = useLocation();
   
-  // Ambil status verifikasi dengan fallback false jika null
+  // 1. Cek apakah user sudah daftar (Data dari RegisterPortal)
+  const localUser = JSON.parse(localStorage.getItem("eas_user_data") || "null");
+  
+  // 2. Cek apakah sudah tekan 'Activate Database' di AccessPortal
   const hasID = localStorage.getItem("eas_verified") === "true";
 
-  if (loading) return (
-    <div className="h-screen bg-[#00050d] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin"></div>
-        <div className="text-blue-500 font-black animate-pulse tracking-[0.3em] text-[10px] uppercase">
-          Scanning Biometric Identity...
-        </div>
-      </div>
-    </div>
-  );
-
-  // 1. Jika belum login, tendang ke Register
-  // Gunakan state agar setelah login bisa balik ke halaman yang dituju sebelumnya
-  if (!user) {
+  // LOGIKA PROTEKSI:
+  
+  // A. Jika belum daftar sama sekali, lempar ke Register
+  if (!localUser) {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  // 2. Jika fitur butuh ID Card tapi user belum scan, tendang ke AccessPortal
-  // Pastikan tidak terjadi infinite redirect jika user sedang di AccessPortal
+  // B. Jika sudah daftar tapi belum verifikasi ID, paksa ke Access Portal
+  // Kecuali jika user memang sedang berada di Access Portal (cegah infinite loop)
   if (requireID && !hasID && location.pathname !== "/access-portal") {
     return <Navigate to="/access-portal" replace />;
   }
