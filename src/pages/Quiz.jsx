@@ -70,3 +70,6 @@ const QuizMember = () => {
     </div>
   );
 };
+// Di baris paling akhir file AccessPortal.jsx
+export default Quiz; 
+
