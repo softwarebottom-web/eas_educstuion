@@ -47,6 +47,9 @@ const RegisterPortal = () => {
         status: "pending"
       });
 
+      localStorage.setItem("eas_user", JSON.stringify({ ...form, gen }));
+      localStorage.setItem("eas_verified", "false");
+
       // --- REDIRECT KE GRUP WHATSAPP ---
       alert(`IDENTITAS TERVERIFIKASI! Selamat bergabung di Gen ${gen}. Klik OK untuk masuk ke grup seleksi.`);
       
@@ -55,6 +58,8 @@ const RegisterPortal = () => {
 
     } catch (err) {
       // Jika server AI mati, tetap simpan data agar Admin bisa cek manual
+      localStorage.setItem("eas_user", JSON.stringify({ ...form, gen }));
+      localStorage.setItem("eas_verified", "false");
       console.error("AI Offline, bypass ke admin mode.");
       alert("Sistem AI sedang sibuk, data dikirim langsung ke Admin. Silakan masuk ke grup.");
       window.location.href = WHATSAPP_LINKS[gen];

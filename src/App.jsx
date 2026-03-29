@@ -55,6 +55,10 @@ function App() {
   const [user] = useAuthState(auth);
   const localUser = localStorage.getItem("eas_user");
 
+  const handleVerified = () => {
+    localStorage.setItem("eas_verified", "true");
+  };
+
   useEffect(() => {
     const introDone = localStorage.getItem("intro_viewed");
     if (introDone) setShowIntro(false);
@@ -77,7 +81,7 @@ function App() {
             
             <Route path="/access-portal" element={
               <ProtectedRoute>
-                <AccessPortal />
+                <AccessPortal onVerified={handleVerified} />
               </ProtectedRoute>
             } />
 

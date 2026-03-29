@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Lock, Search } from "lucide-react";
 
-const AccessPortal = ({ onVerified }) => {
+const AccessPortal = ({ onVerified = () => {} }) => {
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
   const handleUploadID = (e) => {
@@ -11,8 +13,9 @@ const AccessPortal = ({ onVerified }) => {
     // Simulasi Scanning (Bisa dikembangkan dengan Library QR Scanner)
     setTimeout(() => {
       if (file) {
-        alert("ID VALID: Akses Laboratorium Terbuka!");
         onVerified(true);
+        alert("ID VALID: Akses Laboratorium Terbuka!");
+        navigate("/");
       }
       setChecking(false);
     }, 2000);
