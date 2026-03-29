@@ -1,16 +1,37 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import { Download, ShieldCheck } from "lucide-react";
 
 const IDCard = ({ data, gen }) => {
   const cardRef = useRef();
+  const [downloading, setDownloading] = useState(false);
 
-  const safeName = (data?.nama || "Member").replace(/[^a-z0-9]/gi, "_");
+  // 🔒 sanitize nama untuk file + QR
+  const safeName = (data?.nama || "Member")
+    .replace(/[^a-z0-9]/gi, "_")
+    .toUpperCase();
+
+  const finalGen = gen || data?.gen || 1;
 
   const downloadCard = async () => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || downloading) return;
+
+    setDownloading(true);
 
     try {
+      // 🔒 tunggu semua gambar (QR) ke-load dulu
+      const images = cardRef.current.querySelectorAll("img");
+      await Promise.all(
+        Array.from(images).map(
+          (img) =>
+            new Promise((resolve) => {
+              if (img.complete) return resolve();
+              img.onload = resolve;
+              img.onerror = resolve;
+            })
+        )
+      );
+
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#00050d",
         scale: 3,
@@ -20,15 +41,16 @@ const IDCard = ({ data, gen }) => {
 
       const link = document.createElement("a");
       link.download = `EAS_ID_${safeName}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
+
     } catch (err) {
       console.error("Download error:", err);
       alert("Gagal download ID Card");
+    } finally {
+      setDownloading(false);
     }
   };
-
-  const finalGen = gen || data?.gen || 1;
 
   return (
     <div className="flex flex-col items-center">
@@ -76,6 +98,7 @@ const IDCard = ({ data, gen }) => {
                 alt="QR"
                 className="w-12 h-12"
                 crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
               />
             </div>
             <p className="text-[6px] text-blue-400 uppercase">
@@ -95,10 +118,11 @@ const IDCard = ({ data, gen }) => {
       {/* BUTTON */}
       <button
         onClick={downloadCard}
-        className="mt-6 flex items-center gap-2 bg-blue-600 px-6 py-3 rounded-xl font-bold text-xs hover:scale-105 transition"
+        disabled={downloading}
+        className="mt-6 flex items-center gap-2 bg-blue-600 px-6 py-3 rounded-xl font-bold text-xs hover:scale-105 transition disabled:opacity-50"
       >
         <Download size={14} />
-        Download ID
+        {downloading ? "PROCESSING..." : "Download ID"}
       </button>
     </div>
   );
