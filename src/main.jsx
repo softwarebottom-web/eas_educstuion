@@ -1,9 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css'; // File Tailwind CSS utama
+import './index.css';
 
-// Render App
+// Pastikan memanggil React agar tidak 'not defined'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
