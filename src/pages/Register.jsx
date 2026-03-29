@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { db } from "../api/config";
 import { collection, addDoc } from "firebase/firestore";
 import axios from "axios";
-import { ShieldCheck, Send, User, MapPin, Calendar, Smartphone } from "lucide-react";
+import { ShieldCheck, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const RegisterPortal = () => {
@@ -22,8 +22,17 @@ const RegisterPortal = () => {
       return;
     }
 
+    // 🔒 SATUKAN STRUKTUR DATA (dipakai di success & fallback)
+    const baseData = {
+      ...form,
+      umur: parseInt(form.umur),
+      gen: gen,
+      memberId: "EAS-" + Math.floor(1000 + Math.random() * 9000),
+      timestamp: new Date().toISOString()
+    };
+
     try {
-      // Validasi Nama Pake OpenRouter
+      // 🔥 AI VALIDATION (lebih aman)
       const aiCheck = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
@@ -31,20 +40,24 @@ const RegisterPortal = () => {
           messages: [
             {
               role: "system",
-              content: "Kamu adalah validator identitas EAS. Jawab HANYA 'VALID' jika nama wajar, atau 'INVALID' jika asal-asalan."
+              content: "Jawab hanya VALID atau INVALID."
             },
-            { role: "user", content: `Apakah nama "${form.nama}" valid?` }
+            {
+              role: "user",
+              content: `Apakah nama "${form.nama}" valid?`
+            }
           ]
         },
         {
           headers: {
-            "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
+            Authorization: `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
             "Content-Type": "application/json"
           }
         }
       );
 
-      const isValid = aiCheck.data.choices[0].message.content.includes("VALID");
+      const result = aiCheck?.data?.choices?.[0]?.message?.content?.toUpperCase() || "";
+      const isValid = result.includes("VALID");
 
       if (!isValid) {
         alert("IDENTITAS DITOLAK: Gunakan nama asli.");
@@ -52,27 +65,22 @@ const RegisterPortal = () => {
         return;
       }
 
-      const userData = {
-        ...form,
-        umur: parseInt(form.umur),
-        gen: gen,
-        memberId: "EAS-" + Math.floor(1000 + Math.random() * 9000),
-        timestamp: new Date().toISOString()
-      };
+      // 🔥 FIRESTORE
+      await addDoc(collection(db, `pendaftaran_eas_gen${gen}`), baseData);
 
-      // Simpan ke Firestore
-      await addDoc(collection(db, `pendaftaran_eas_gen${gen}`), userData);
-
-      // Simpan ke Local Storage untuk dipake di AccessPortal/IdCard
-      localStorage.setItem("eas_user_data", JSON.stringify(userData));
+      // 🔥 LOCAL STORAGE (KONSISTEN)
+      localStorage.setItem("eas_user_data", JSON.stringify(baseData));
       localStorage.setItem("eas_verified", "true");
 
       navigate("/access-portal");
 
     } catch (err) {
       console.error("Error:", err);
-      // Fallback biar pendaftar gak nyangkut pas API limit
-      localStorage.setItem("eas_user_data", JSON.stringify({...form, gen}));
+
+      // 🔥 FALLBACK TETAP SAMA STRUKTUR
+      localStorage.setItem("eas_user_data", JSON.stringify(baseData));
+      localStorage.setItem("eas_verified", "true");
+
       navigate("/access-portal");
     } finally {
       setLoading(false);
@@ -96,23 +104,53 @@ const RegisterPortal = () => {
       </div>
 
       <div className="w-full max-w-md p-8 rounded-[2.5rem] border border-blue-500/20 bg-blue-950/10 backdrop-blur-2xl">
-        <div className="flex justify-center mb-4 text-blue-500"><ShieldCheck size={40} /></div>
-        <h2 className="text-xl font-black text-center mb-8 tracking-widest uppercase italic">Researcher Portal</h2>
+        <div className="flex justify-center mb-4 text-blue-500">
+          <ShieldCheck size={40} />
+        </div>
+
+        <h2 className="text-xl font-black text-center mb-8 tracking-widest uppercase italic">
+          Researcher Portal
+        </h2>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="relative">
             <User className="absolute left-4 top-4 text-gray-600" size={18} />
-            <input required placeholder="NAMA LENGKAP" className="w-full p-4 pl-12 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold" onChange={e => setForm({...form, nama: e.target.value})} />
+            <input
+              required
+              placeholder="NAMA LENGKAP"
+              className="w-full p-4 pl-12 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold"
+              onChange={(e) => setForm({ ...form, nama: e.target.value })}
+            />
           </div>
 
           <div className="flex gap-3">
-            <input required type="number" placeholder="UMUR" className="w-1/3 p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold" onChange={e => setForm({...form, umur: e.target.value})} />
-            <input required placeholder="DOMISILI" className="w-2/3 p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold" onChange={e => setForm({...form, domisili: e.target.value})} />
+            <input
+              required
+              type="number"
+              placeholder="UMUR"
+              className="w-1/3 p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold"
+              onChange={(e) => setForm({ ...form, umur: e.target.value })}
+            />
+            <input
+              required
+              placeholder="DOMISILI"
+              className="w-2/3 p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold"
+              onChange={(e) => setForm({ ...form, domisili: e.target.value })}
+            />
           </div>
 
-          <input required placeholder="TIKTOK @USERNAME" className="w-full p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold" onChange={e => setForm({...form, tiktok: e.target.value})} />
+          <input
+            required
+            placeholder="TIKTOK @USERNAME"
+            className="w-full p-4 bg-black/40 border border-gray-800 rounded-2xl outline-none focus:border-blue-500 text-xs font-bold"
+            onChange={(e) => setForm({ ...form, tiktok: e.target.value })}
+          />
 
-          <button type="submit" disabled={loading} className="w-full mt-4 p-5 rounded-2xl font-black text-[10px] tracking-widest bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-900/20">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-4 p-5 rounded-2xl font-black text-[10px] tracking-widest bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+          >
             {loading ? "CHECKING IDENTITY..." : "JOIN RESEARCHER"}
           </button>
         </form>
