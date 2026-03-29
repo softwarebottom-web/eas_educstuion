@@ -1,50 +1,47 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "./api/config"; // Import Firebase config kamu
+import { auth } from "./api/config"; 
 
 // Components & Pages
-import Intro from "./component/Intro";
+import Intro from "./component/Intro"; // Pastikan folder 'component' (tanpa s)
 import RegisterPortal from "./pages/Register";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
-import Library from "./pages/Libary";
-import Quiz from "./pages/Quiz";
+import Library from "./pages/Libary"; // Cek apakah filenya 'Libary.jsx' atau 'Library.jsx'
+import Quiz from "./pages/Quiz"; // ERROR UTAMA: Pastikan file 'Quiz.jsx' ADA di folder pages
 import About from "./pages/About";
 import AdminPanel from "./pages/AdminPanel";
 import Navbar from "./component/Navbar";
 
-// Staff Data (Berdasarkan Struktur yang kamu berikan)
+// Staff Data
 import { EAS_STAFF_LIST } from "./api/staff";
 
 // --- 🛡️ PROTECTED ROUTE SYSTEM ---
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const [user, loading] = useAuthState(auth);
-  const localUser = JSON.parse(localStorage.getItem("eas_user"));
+  const localUser = JSON.parse(localStorage.getItem("eas_user") || "{}");
   const isVerified = localStorage.getItem("eas_verified") === "true";
   const location = useLocation();
 
   if (loading) return (
-    <div className="h-screen bg-black flex items-center justify-center">
-      <div className="text-blue-500 font-black animate-pulse tracking-widest text-xs">INITIALIZING EAS SYSTEM...</div>
+    <div className="h-screen bg-[#00050d] flex items-center justify-center">
+      <div className="text-blue-500 font-black animate-pulse tracking-widest text-xs uppercase">Connecting to EAS Satellite...</div>
     </div>
   );
 
-  // 1. Cek Login
-  if (!user && !localUser) {
+  if (!user && Object.keys(localUser).length === 0) {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  // 2. Cek ID Card (Kecuali AccessPortal)
   if (!isVerified && location.pathname !== "/access-portal") {
     return <Navigate to="/access-portal" replace />;
   }
 
-  // 3. Cek Hirarki Admin & Editor
   if (adminOnly) {
     const staff = EAS_STAFF_LIST[localUser?.nama?.toLowerCase()];
-    if (!staff || staff.level < 1) { // Editor level 1, Admin level 3, Owner level 5
-      alert("AKSES DITOLAK: Area ini khusus Petinggi & Editor EAS!");
+    if (!staff || staff.level < 1) {
+      alert("AKSES DITOLAK: Area khusus Petinggi!");
       return <Navigate to="/" replace />;
     }
   }
@@ -58,7 +55,6 @@ function App() {
   const [user] = useAuthState(auth);
   const localUser = localStorage.getItem("eas_user");
 
-  // Cek apakah user sudah pernah melewati Intro
   useEffect(() => {
     const introDone = localStorage.getItem("intro_viewed");
     if (introDone) setShowIntro(false);
@@ -71,24 +67,20 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500 selection:text-white">
+      <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500">
         
-        {/* 1. INTRO & UUD LAYER */}
         {showIntro && <Intro onFinish={handleIntroFinish} />}
 
-        <div className={showIntro ? "hidden" : "block pb-24"}>
+        <div className={showIntro ? "hidden" : "block"}>
           <Routes>
-            {/* PUBLIC / REGISTRATION */}
             <Route path="/register" element={<RegisterPortal />} />
             
-            {/* ACCESS GATE (SCAN ID) */}
             <Route path="/access-portal" element={
-              <ProtectedRoute requireID={false}>
+              <ProtectedRoute>
                 <AccessPortal />
               </ProtectedRoute>
             } />
 
-            {/* MEMBER AREA (HOME, LIBRARY, QUIZ, ABOUT) */}
             <Route path="/" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -113,18 +105,15 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 👑 STAFF AREA (OWNER, CO, ADMIN, EDITOR) */}
             <Route path="/admin" element={
               <ProtectedRoute adminOnly={true}>
                 <AdminPanel />
               </ProtectedRoute>
             } />
 
-            {/* REDIRECT IF WRONG URL */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
 
-          {/* NAVBAR (Hanya muncul jika sudah login & intro selesai) */}
           {(user || localUser) && !showIntro && <Navbar />}
         </div>
       </div>
