@@ -12,6 +12,7 @@ import Library from "./pages/Libary"; // Cek apakah filenya 'Libary.jsx' atau 'L
 import Quiz from "./pages/Quiz"; // ERROR UTAMA: Pastikan file 'Quiz.jsx' ADA di folder pages
 import About from "./pages/About";
 import AdminPanel from "./pages/AdminPanel";
+import AdminAuth from "./pages/AdminAuth"; // Import file yang baru kamu buat
 import Navbar from "./component/Navbar";
 
 // Staff Data
