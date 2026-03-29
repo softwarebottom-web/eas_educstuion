@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"; // Fix: React is not defined
 import { useNavigate } from "react-router-dom";
 import { Lock, Search, Download } from "lucide-react";
-import IDCard from "../component/IDCard";
+import IdCard from "../component/IdCard";
 
 const AccessPortal = () => {
   const navigate = useNavigate();
