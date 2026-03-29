@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react"; // Fix: React is not defined
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Search, Download } from "lucide-react";
+import { Lock, Search } from "lucide-react";
 import IdCard from "../component/IdCard";
 
 const AccessPortal = () => {
@@ -9,70 +9,59 @@ const AccessPortal = () => {
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    // Ambil data yang baru disimpan pas registrasi tadi
     const saved = localStorage.getItem("eas_user_data");
+
     if (saved) {
-      setUserData(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        setUserData(parsed);
+      } catch (err) {
+        console.error("JSON error:", err);
+      }
     }
   }, []);
 
   const handleUploadID = (e) => {
     setChecking(true);
     const file = e.target.files[0];
-    
-    // Simulasi Scanning ID Card
+
     setTimeout(() => {
       if (file) {
         localStorage.setItem("eas_verified", "true");
-        alert("ID VALID: Akses Laboratorium Terbuka!");
+        alert("ID VALID: Akses Terbuka!");
         navigate("/");
       }
       setChecking(false);
-    }, 2500);
+    }, 2000);
   };
 
   return (
     <div className="min-h-screen bg-[#00050d] text-white flex flex-col items-center justify-center p-6 gap-8">
-      
-      {/* JIKA USER BARU DAFTAR: Tampilkan Kartu buat di-Download */}
-      {userData && (
-        <div className="flex flex-col items-center animate-in fade-in zoom-in duration-700">
-          <h1 className="text-[10px] font-black tracking-[0.4em] text-blue-500 mb-6 uppercase">
-            Researcher Identity Generated
+
+      {/* ✅ ID CARD MUNCUL */}
+      {userData !== null && (
+        <div className="flex flex-col items-center">
+          <h1 className="text-xs text-blue-500 mb-4 uppercase">
+            ID Generated
           </h1>
-          <IDCard data={userData} gen={userData.gen || 1} />
-          
-          <p className="mt-6 text-[9px] text-gray-500 max-w-[250px] text-center leading-relaxed uppercase tracking-widest">
-            Simpan ID Card di atas. Gunakan saat sistem meminta verifikasi akses masuk.
+
+          <IdCard data={userData} />
+
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            Screenshot / simpan ID ini
           </p>
         </div>
       )}
 
-      {/* JIKA MAU VERIFIKASI AKSES (UPLOAD) */}
-      <div className="w-full max-w-sm p-8 border border-dashed border-blue-900/30 rounded-[2.5rem] bg-black/40 backdrop-blur-md text-center">
-        <div className="bg-blue-950/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/20">
-          {checking ? <Search className="animate-spin text-blue-400" /> : <Lock className="text-gray-600" />}
+      {/* UPLOAD */}
+      <div className="w-full max-w-sm p-6 border rounded-xl text-center">
+        <div className="mb-4">
+          {checking ? <Search /> : <Lock />}
         </div>
-        
-        <h2 className="text-lg font-black mb-2 tracking-tighter italic">RESTRICTED AREA</h2>
-        <p className="text-[10px] text-gray-500 mb-8 px-4 uppercase tracking-tighter">
-          Upload ID Card EAS untuk memverifikasi hak akses Quiz & Library.
-        </p>
 
-        <label className="block w-full bg-blue-600 py-4 rounded-2xl font-black text-[10px] tracking-widest cursor-pointer hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-900/20">
-          {checking ? "ENCRYPTING DATA..." : "UPLOAD ID CARD"}
-          <input type="file" className="hidden" accept="image/*" onChange={handleUploadID} />
-        </label>
+        <input type="file" onChange={handleUploadID} />
       </div>
 
-      {userData && (
-        <button 
-          onClick={() => navigate("/")}
-          className="text-[9px] font-bold text-gray-600 hover:text-blue-400 transition-colors tracking-[0.2em] uppercase"
-        >
-          Skip to Dashboard →
-        </button>
-      )}
     </div>
   );
 };
