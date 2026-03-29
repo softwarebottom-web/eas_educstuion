@@ -5,7 +5,7 @@ import { auth } from "./api/config";
 
 // Components & Pages
 import Intro from "./component/Intro"; // Pastikan folder 'component' (tanpa s)
-import RegisterPortal from "./pages/Register";
+import RegisterPortal from "./pages/RegisterPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Libary"; // Cek apakah filenya 'Libary.jsx' atau 'Library.jsx'
