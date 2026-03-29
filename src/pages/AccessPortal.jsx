@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Lock, Search } from "lucide-react";
 import IdCard from "../component/IdCard";
 
+const WHATSAPP_LINKS = {
+  1: "https://chat.whatsapp.com/DMSABsZCPC77nkFdzphbNH",
+  2: "https://chat.whatsapp.com/JuLtO0VsqxDHUSHNrNjQZN"
+};
+
 const AccessPortal = () => {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
@@ -13,54 +18,44 @@ const AccessPortal = () => {
 
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setUserData(parsed);
-      } catch (err) {
-        console.error("JSON error:", err);
+        setUserData(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
       }
     }
   }, []);
 
   const handleUploadID = (e) => {
     setChecking(true);
-    const file = e.target.files[0];
 
     setTimeout(() => {
-      if (file) {
-        localStorage.setItem("eas_verified", "true");
-        alert("ID VALID: Akses Terbuka!");
-        navigate("/");
-      }
+      localStorage.setItem("eas_verified", "true");
+      navigate("/");
       setChecking(false);
-    }, 2000);
+    }, 1500);
   };
 
   return (
-    <div className="min-h-screen bg-[#00050d] text-white flex flex-col items-center justify-center p-6 gap-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white gap-6">
 
-      {/* ✅ ID CARD MUNCUL */}
-      {userData !== null && (
-        <div className="flex flex-col items-center">
-          <h1 className="text-xs text-blue-500 mb-4 uppercase">
-            ID Generated
-          </h1>
-
+      {/* ID CARD */}
+      {userData && (
+        <>
           <IdCard data={userData} />
 
-          <p className="mt-4 text-xs text-gray-500 text-center">
-            Screenshot / simpan ID ini
-          </p>
-        </div>
+          {/* 🔥 JOIN WA */}
+          <a
+            href={WHATSAPP_LINKS[userData.gen]}
+            target="_blank"
+            className="bg-green-600 px-6 py-3 rounded-xl font-bold text-sm hover:scale-105 transition"
+          >
+            JOIN WHATSAPP GROUP
+          </a>
+        </>
       )}
 
       {/* UPLOAD */}
-      <div className="w-full max-w-sm p-6 border rounded-xl text-center">
-        <div className="mb-4">
-          {checking ? <Search /> : <Lock />}
-        </div>
-
-        <input type="file" onChange={handleUploadID} />
-      </div>
+      <input type="file" onChange={handleUploadID} />
 
     </div>
   );
