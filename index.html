@@ -5,7 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EAS Education Portal</title>
-    <script src="https://cdn.tailwindcss.net"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              eas: '#00050d',
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      body { background-color: #00050d; color: white; margin: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
