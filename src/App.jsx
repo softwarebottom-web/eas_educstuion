@@ -8,7 +8,7 @@ import Intro from "./component/Intro";
 import RegisterPortal from "./pages/Register";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
-import Library from "./pages/Library";
+import Library from "./pages/Libary";
 import Quiz from "./pages/Quiz";
 import About from "./pages/About";
 import AdminPanel from "./pages/AdminPanel";
