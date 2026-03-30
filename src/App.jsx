@@ -6,7 +6,7 @@ import { auth } from "./api/config";
 // Components & Pages
 import Intro from "./component/Intro"; 
 import Navbar from "./component/Navbar";
-import RegisterPortal from "./pages/Register";
+import RegisterPortal from "./pages/RegisterPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Libary";
