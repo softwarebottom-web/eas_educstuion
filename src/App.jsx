@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./api/config"; 
 
-// Components & Pages
-import Intro from "./components/Intro";
+// Components & Pages (PASTIKAN FOLDERNYA: component)
+import Intro from "./component/Intro"; 
+import Navbar from "./component/Navbar";
 import RegisterPortal from "./pages/Register";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
@@ -12,15 +13,14 @@ import Library from "./pages/Library";
 import Quiz from "./pages/Quiz";
 import About from "./pages/About";
 import AdminPanel from "./pages/AdminPanel";
-import Navbar from "./components/Navbar";
 
-// Staff Data (Hierarchy: Owner 5, Admin 3, Editor 1)
+// Staff Data
 import { EAS_STAFF_LIST } from "./api/staff";
 
 // --- 🛡️ PROTECTED ROUTE SYSTEM ---
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const [user, loading] = useAuthState(auth);
-  // FIX: Konsisten pakai 'eas_user_data' biar sinkron sama Register
+  // Ambil data user yang daftar tadi
   const localUser = JSON.parse(localStorage.getItem("eas_user_data") || "null");
   const isVerified = localStorage.getItem("eas_verified") === "true";
   const location = useLocation();
@@ -33,24 +33,21 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     </div>
   );
 
-  // 1. Cek Login (Firebase Auth atau LocalStorage)
+  // 1. Cek Login
   if (!user && !localUser) {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  // 2. Cek ID Card (Kecuali pas di Access Portal)
+  // 2. Cek ID Card (Kecuali di Access Portal)
   if (!isVerified && location.pathname !== "/access-portal") {
     return <Navigate to="/access-portal" replace />;
   }
 
-  // 3. Cek Hirarki Staff (Level System)
+  // 3. Cek Hirarki Admin & Editor
   if (adminOnly) {
-    // Normalisasi nama buat nyocokin sama list staff
-    const staffName = localUser?.nama?.toLowerCase();
-    const staff = EAS_STAFF_LIST[staffName];
-    
+    const staff = EAS_STAFF_LIST[localUser?.nama?.toLowerCase()];
     if (!staff || staff.level < 1) { 
-      alert("AKSES DITOLAK: Area khusus Petinggi (Admin/Editor)!");
+      alert("AKSES DITOLAK: Area khusus Petinggi!");
       return <Navigate to="/" replace />;
     }
   }
@@ -65,7 +62,7 @@ function App() {
   const localUser = localStorage.getItem("eas_user_data");
 
   useEffect(() => {
-    // Cek apakah user sudah pernah liat intro biar gak spam
+    // Cek apakah user sudah pernah liat intro
     const introDone = localStorage.getItem("intro_viewed");
     if (introDone) setShowIntro(false);
   }, []);
@@ -79,23 +76,20 @@ function App() {
     <Router>
       <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500">
         
-        {/* 1. INTRO LAYER (UUD & Animation) */}
+        {/* 1. LAYER INTRO & UUD */}
         {showIntro && <Intro onFinish={handleIntroFinish} />}
 
         {/* 2. MAIN APP CONTENT */}
-        <div className={showIntro ? "hidden" : "block"}>
+        <div className={showIntro ? "hidden" : "block pb-24"}>
           <Routes>
-            {/* PUBLIC / REGISTER */}
             <Route path="/register" element={<RegisterPortal />} />
             
-            {/* ACCESS GATE (SCAN ID) */}
             <Route path="/access-portal" element={
               <ProtectedRoute>
                 <AccessPortal />
               </ProtectedRoute>
             } />
 
-            {/* MEMBER AREA */}
             <Route path="/" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -120,18 +114,16 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 👑 STAFF AREA (ADMIN/EDITOR ONLY) */}
             <Route path="/admin" element={
               <ProtectedRoute adminOnly={true}>
                 <AdminPanel />
               </ProtectedRoute>
             } />
 
-            {/* FALLBACK REDIRECT */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
 
-          {/* NAVBAR: Muncul kalau sudah Login & Lewat Intro */}
+          {/* 3. NAVBAR (Hanya muncul jika sudah login & intro selesai) */}
           {(user || localUser) && !showIntro && <Navbar />}
         </div>
       </div>
