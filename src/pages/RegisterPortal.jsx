@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-import { db } from "../api/config"; // boleh tetap pakai firestore
+import React, { useState, useEffect } from "react";
+import { db, supabase } from "../api/config"; // 🔥 SATU TEMPAT
 import { collection, addDoc } from "firebase/firestore";
-import { supabase } from "../api/supabase";
-import { ShieldCheck, User, Link as LinkIcon, Image } from "lucide-react";
+import { Image } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const RegisterPortal = () => {
@@ -21,18 +20,24 @@ const RegisterPortal = () => {
 
   const navigate = useNavigate();
 
+  // 🔥 CLEANUP MEMORY (penting)
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
   const handlePhoto = (e) => {
     const file = e.target.files[0];
-
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Harus gambar!");
+      alert("File harus gambar!");
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Max 2MB");
+      alert("Max 2MB!");
       return;
     }
 
@@ -46,50 +51,69 @@ const RegisterPortal = () => {
     if (!photo) return alert("Upload foto ID Card!");
 
     const umurNum = parseInt(form.umur);
-    if (!form.nama || umurNum < 10) {
-      return alert("Data tidak valid");
+
+    if (!form.nama || form.nama.trim().length < 3) {
+      return alert("Nama minimal 3 huruf");
+    }
+
+    if (isNaN(umurNum) || umurNum < 10) {
+      return alert("Umur tidak valid");
+    }
+
+    if (!form.tiktok.toLowerCase().includes("tiktok")) {
+      return alert("Link TikTok tidak valid");
     }
 
     setLoading(true);
 
-    const fileName = `${Date.now()}-${photo.name}`;
-
     try {
-      // 🔥 UPLOAD KE SUPABASE
+      // 🔥 UNIQUE FILE NAME (ANTI TABRAKAN)
+      const fileExt = photo.name.split(".").pop();
+      const fileName = `idcard_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2)}.${fileExt}`;
+
+      // 🔥 UPLOAD
       const { error: uploadError } = await supabase.storage
         .from("eas-idcard")
         .upload(fileName, photo);
 
       if (uploadError) throw uploadError;
 
-      // 🔥 AMBIL URL
+      // 🔥 GET PUBLIC URL
       const { data } = supabase.storage
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
       const photoURL = data.publicUrl;
 
+      // 🔥 DATA FINAL
       const userData = {
         nama: form.nama.trim(),
         umur: umurNum,
         domisili: form.domisili.trim(),
         tiktok: form.tiktok.trim(),
-        gen: gen,
+        gen,
         photo: photoURL,
+        verified: false, // 🔥 PENTING BUAT ADMIN
         memberId: "EAS-" + Math.floor(1000 + Math.random() * 9000),
         timestamp: new Date().toISOString()
       };
 
-      // 🔥 SIMPAN (boleh Firestore / nanti pindah Supabase DB)
-      await addDoc(collection(db, `pendaftaran_eas_gen${gen}`), userData);
+      // 🔥 SAVE FIRESTORE
+      await addDoc(
+        collection(db, `pendaftaran_eas_gen${gen}`),
+        userData
+      );
 
+      // 🔥 SAVE LOCAL
       localStorage.setItem("eas_user_data", JSON.stringify(userData));
 
       navigate("/access-portal");
 
     } catch (err) {
       console.error(err);
-      alert("Upload gagal!");
+      alert("Upload gagal: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -109,42 +133,57 @@ const RegisterPortal = () => {
           <div className="text-center">
             <label className="cursor-pointer">
               {preview ? (
-                <img src={preview} className="w-24 h-24 rounded-full mx-auto object-cover"/>
+                <img
+                  src={preview}
+                  className="w-24 h-24 rounded-full mx-auto object-cover border border-blue-500/30"
+                />
               ) : (
                 <div className="w-24 h-24 mx-auto flex items-center justify-center border border-gray-700 rounded-full">
                   <Image />
                 </div>
               )}
-              <input type="file" hidden onChange={handlePhoto}/>
+              <input type="file" hidden onChange={handlePhoto} />
             </label>
-            <p className="text-xs text-gray-500 mt-2">Upload Foto ID</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Upload Foto ID (Max 2MB)
+            </p>
           </div>
 
+          {/* INPUT */}
           <input
             placeholder="Nama"
             className="w-full p-3 bg-black/40 rounded-xl"
-            onChange={(e) => setForm({...form, nama: e.target.value})}
+            onChange={(e) =>
+              setForm({ ...form, nama: e.target.value })
+            }
           />
 
           <input
             type="number"
             placeholder="Umur"
             className="w-full p-3 bg-black/40 rounded-xl"
-            onChange={(e) => setForm({...form, umur: e.target.value})}
+            onChange={(e) =>
+              setForm({ ...form, umur: e.target.value })
+            }
           />
 
           <input
             placeholder="Domisili"
             className="w-full p-3 bg-black/40 rounded-xl"
-            onChange={(e) => setForm({...form, domisili: e.target.value})}
+            onChange={(e) =>
+              setForm({ ...form, domisili: e.target.value })
+            }
           />
 
           <input
             placeholder="Link TikTok"
             className="w-full p-3 bg-black/40 rounded-xl"
-            onChange={(e) => setForm({...form, tiktok: e.target.value})}
+            onChange={(e) =>
+              setForm({ ...form, tiktok: e.target.value })
+            }
           />
 
+          {/* BUTTON */}
           <button
             disabled={loading}
             className="w-full bg-blue-600 p-4 rounded-xl font-bold"
