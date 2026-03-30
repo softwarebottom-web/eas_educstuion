@@ -23,12 +23,14 @@ const AccessPortal = () => {
     setChecking(true);
 
     setTimeout(() => {
-      // SET VERIFIED JADI TRUE
+      // SIMPAN STATUS VERIFIKASI
       localStorage.setItem("eas_verified", "true");
-      alert("AKSES DITERIMA: Selamat datang di Lab EAS.");
+      
+      alert("AKSES DITERIMA: Lab EAS Terbuka.");
       
       setChecking(false);
-      // LANGSUNG KE DASHBOARD (/) DAN REFRESH STATE
+      
+      // PAKSA PINDAH KE DASHBOARD & REFRESH TOTAL
       window.location.href = "/"; 
     }, 2000);
   };
@@ -40,19 +42,21 @@ const AccessPortal = () => {
       </button>
 
       {userData ? (
-        <div className="flex flex-col items-center gap-8 w-full max-w-sm">
+        <div className="flex flex-col items-center gap-8 w-full max-w-sm animate-in fade-in duration-700">
           <IDCard data={userData} gen={userData.gen} />
           <a href={WHATSAPP_LINKS[userData.gen]} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-3 bg-green-600/10 border border-green-500/30 p-5 rounded-2xl text-green-400 uppercase text-[10px] font-black">
             <MessageCircle size={18} /> Join Group Gen {userData.gen}
           </a>
         </div>
       ) : (
-        <div className="text-gray-600 font-black text-[10px] animate-pulse">MENCARI DATA...</div>
+        <div className="text-gray-600 font-black text-[10px] animate-pulse">MENCARI DATA IDENTITAS...</div>
       )}
 
       <div className="w-full max-w-xs p-8 border border-dashed border-blue-900/30 rounded-[2.5rem] bg-black/40 text-center">
         <h2 className="text-[11px] font-black mb-1 tracking-widest uppercase text-blue-400 italic">Security Check</h2>
-        <label className="block w-full bg-blue-600/10 border border-blue-500/50 py-4 rounded-xl font-black text-[9px] cursor-pointer hover:bg-blue-600 transition-all uppercase mt-6">
+        <p className="text-[8px] text-gray-600 mb-6 uppercase tracking-tighter leading-relaxed">Gunakan ID Card di atas untuk membuka akses database.</p>
+        
+        <label className="block w-full bg-blue-600/10 border border-blue-500/50 py-4 rounded-xl font-black text-[9px] cursor-pointer hover:bg-blue-600 hover:text-white transition-all uppercase">
           {checking ? "ENCRYPTING..." : "ACTIVATE DATABASE"}
           <input type="file" className="hidden" accept="image/*" onChange={handleUploadID} />
         </label>
