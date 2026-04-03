@@ -2,61 +2,96 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../api/config";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen } from "lucide-react";
+import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen, LogOut } from "lucide-react";
 
-// 🔥 IMPORT QUIZ MANAGER
 import AdminQuiz from "./AdminQuiz";
 
 const AdminDashboard = () => {
   const [listGen1, setListGen1] = useState([]);
   const [listGen2, setListGen2] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("members"); // 🔥 TAB SWITCH
+  const [tab, setTab] = useState("members");
+
+  const [activeStaff, setActiveStaff] = useState(null);
 
   const navigate = useNavigate();
 
-  const adminToken = localStorage.getItem("eas_admin_token");
-  const activeStaff = localStorage.getItem("eas_active_staff");
-
+  // 🔥 FETCH DATA
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res1 = await getDocs(collection(db, "pendaftaran_eas_gen1"));
-      const res2 = await getDocs(collection(db, "pendaftaran_eas_gen2"));
+      const [res1, res2] = await Promise.all([
+        getDocs(collection(db, "pendaftaran_eas_gen1")),
+        getDocs(collection(db, "pendaftaran_eas_gen2"))
+      ]);
 
       setListGen1(res1.docs.map(d => ({ id: d.id, ...d.data() })));
       setListGen2(res2.docs.map(d => ({ id: d.id, ...d.data() })));
+
     } catch (err) {
-      console.error("Gagal ambil data:", err);
+      console.error("Fetch error:", err);
+      alert("Gagal ambil data");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
+  // 🔥 DELETE
   const deleteMember = async (id, gen) => {
-    if (window.confirm("Hapus pendaftar ini secara permanen?")) {
+    const confirmDelete = window.confirm("Hapus pendaftar ini?");
+    if (!confirmDelete) return;
+
+    try {
       await deleteDoc(doc(db, `pendaftaran_eas_gen${gen}`, id));
       fetchData();
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Gagal hapus data");
     }
   };
 
+  // 🔐 AUTH CHECK (FIXED)
   useEffect(() => {
-    // 🔐 VALIDASI ADMIN
-    if (adminToken !== "SUPER_ADMIN_GRANTED_2026") {
+    const token = localStorage.getItem("eas_admin_token");
+    const staff = localStorage.getItem("eas_active_staff");
+
+    if (token !== "SUPER_ADMIN_GRANTED_2026") {
+      console.warn("No admin token");
       navigate("/", { replace: true });
       return;
     }
 
-    if (!activeStaff) {
+    if (!staff) {
+      console.warn("No active staff");
       navigate("/", { replace: true });
       return;
     }
 
+    setActiveStaff(staff);
     fetchData();
   }, [navigate]);
 
+  // 🔥 LOGOUT ADMIN
+  const handleLogout = () => {
+    if (window.confirm("Keluar dari admin panel?")) {
+      localStorage.removeItem("eas_admin_token");
+      localStorage.removeItem("eas_active_staff");
+      navigate("/", { replace: true });
+    }
+  };
+
+  // 🔥 LOADING UI
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#00050d] text-blue-500 font-bold">
+        Loading Admin Panel...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#00050d] text-white p-6 pb-32 font-mono">
-      
+
       {/* HEADER */}
       <header className="flex justify-between items-start mb-8 border-b border-blue-900 pb-4">
         <div>
@@ -72,105 +107,89 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <button 
-          onClick={fetchData} 
-          className={`p-3 bg-gray-900 rounded-xl border border-gray-800 ${loading && 'animate-spin'}`}
-        >
-          <RefreshCcw size={18} />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={fetchData} 
+            className={`p-3 bg-gray-900 rounded-xl border border-gray-800 ${loading && 'animate-spin'}`}
+          >
+            <RefreshCcw size={18} />
+          </button>
+
+          <button 
+            onClick={handleLogout}
+            className="p-3 bg-red-900/20 text-red-400 rounded-xl border border-red-900"
+          >
+            <LogOut size={18}/>
+          </button>
+        </div>
       </header>
 
-      {/* 🔥 TAB NAVIGATION */}
+      {/* TAB */}
       <div className="flex gap-2 mb-6">
         <TabButton active={tab === "members"} onClick={() => setTab("members")}>
           <Users size={14}/> Members
         </TabButton>
 
         <TabButton active={tab === "quiz"} onClick={() => setTab("quiz")}>
-          <BookOpen size={14}/> Quiz Manager
+          <BookOpen size={14}/> Quiz
         </TabButton>
       </div>
 
-      {/* 🔥 TAB CONTENT */}
+      {/* CONTENT */}
       {tab === "members" && (
         <>
-          {/* STATS */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <StatCard title="Gen 1" value={listGen1.length} color="blue" />
-            <StatCard title="Gen 2" value={listGen2.length} color="cyan" />
+            <StatCard title="Gen 1" value={listGen1.length} />
+            <StatCard title="Gen 2" value={listGen2.length} />
           </div>
 
-          {/* GEN 1 */}
-          <Section 
-            title="Pendaftar Gen 1"
-            data={listGen1}
-            gen={1}
-            color="blue"
-            onDelete={deleteMember}
-          />
-
-          {/* GEN 2 */}
-          <Section 
-            title="Pendaftar Gen 2"
-            data={listGen2}
-            gen={2}
-            color="cyan"
-            onDelete={deleteMember}
-          />
+          <Section title="Gen 1" data={listGen1} gen={1} onDelete={deleteMember} />
+          <Section title="Gen 2" data={listGen2} gen={2} onDelete={deleteMember} />
         </>
       )}
 
-      {/* 🔥 QUIZ TAB */}
       {tab === "quiz" && <AdminQuiz />}
     </div>
   );
 };
 
 
-
-// 🔥 SUB COMPONENTS
+// 🔹 COMPONENTS
 
 const TabButton = ({ children, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all
-      ${active 
-        ? "bg-blue-600 text-white" 
-        : "bg-gray-900 text-gray-400 border border-gray-800"}
-    `}
+    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase
+    ${active ? "bg-blue-600 text-white" : "bg-gray-900 text-gray-400 border border-gray-800"}`}
   >
     {children}
   </button>
 );
 
-const StatCard = ({ title, value, color }) => (
-  <div className={`p-4 rounded-2xl border ${
-    color === "blue" ? "border-blue-900" : "border-cyan-900"
-  }`}>
-    <p className="text-[10px] uppercase text-gray-400">{title}</p>
+const StatCard = ({ title, value }) => (
+  <div className="p-4 rounded-2xl border border-blue-900">
+    <p className="text-[10px] text-gray-400 uppercase">{title}</p>
     <h3 className="text-2xl font-black">{value}</h3>
   </div>
 );
 
-const Section = ({ title, data, gen, color, onDelete }) => (
+const Section = ({ title, data, gen, onDelete }) => (
   <section className="mb-8">
-    <h2 className="text-sm font-black mb-4 uppercase tracking-widest">
-      {title}
-    </h2>
+    <h2 className="text-sm font-black mb-4 uppercase">{title}</h2>
 
     <div className="space-y-3">
       {data.length > 0 ? (
         data.map(u => (
-          <MemberCard key={u.id} data={u} gen={gen} onDelete={onDelete} color={color} />
+          <MemberCard key={u.id} data={u} gen={gen} onDelete={onDelete} />
         ))
       ) : (
-        <p className="text-gray-600 text-xs">Belum ada data...</p>
+        <p className="text-gray-600 text-xs">Kosong</p>
       )}
     </div>
   </section>
 );
 
-const MemberCard = ({ data, gen, onDelete, color }) => (
+const MemberCard = ({ data, gen, onDelete }) => (
   <div className="p-4 rounded-xl border bg-gray-950/50 flex justify-between items-center">
     
     <div>
