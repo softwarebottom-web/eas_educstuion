@@ -25,4 +25,4 @@ const supabaseUrl = "https://sdrlmbusbdomnpbflyya.supabase.co";
 // Masukkan Anon Key (JWT) kamu di sini (yang diawali eyJhbGci...)
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcmxtYnVzYmRvbW5wYmZseXlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzEzODksImV4cCI6MjA5MDM0NzM4OX0.gaNDRJLiIAKW38M6TfKyxZjD6DD8Hh3vVNaC26K1wWs"; 
 
-export const supabaseMedia = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
