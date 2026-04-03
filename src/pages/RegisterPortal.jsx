@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, supabase } from "../api/config";
+import { db, supabaseMedia } from "../api/config"; // 🔥 GANTI DISINI
 import { collection, addDoc } from "firebase/firestore";
 import { Image } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -60,8 +60,8 @@ const RegisterPortal = () => {
       const fileExt = photo.name.split(".").pop();
       const fileName = `idcard_${Date.now()}.${fileExt}`;
 
-      // 🔥 UPLOAD
-      const { error } = await supabase.storage
+      // 🔥 UPLOAD KE SUPABASE
+      const { error } = await supabaseMedia.storage
         .from("eas-idcard")
         .upload(fileName, photo, {
           cacheControl: "3600",
@@ -70,8 +70,8 @@ const RegisterPortal = () => {
 
       if (error) throw error;
 
-      // 🔥 URL
-      const { data } = supabase.storage
+      // 🔥 AMBIL URL
+      const { data } = supabaseMedia.storage
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
@@ -84,6 +84,7 @@ const RegisterPortal = () => {
         timestamp: new Date().toISOString()
       };
 
+      // 🔥 SIMPAN KE FIRESTORE
       await addDoc(
         collection(db, `pendaftaran_eas_gen${gen}`),
         userData
@@ -103,7 +104,7 @@ const RegisterPortal = () => {
 
   return (
     <form onSubmit={handleRegister}>
-      {/* UI tetap sama, gak gue ubah */}
+      {/* UI tetap sama */}
     </form>
   );
 };
