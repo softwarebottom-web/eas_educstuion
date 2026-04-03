@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "./api/config"; 
+import { auth } from "./api/config";
 
 // Components & Pages
-import Intro from "./component/Intro"; 
+import Intro from "./component/Intro";
 import Navbar from "./component/Navbar";
 import RegisterPortal from "./pages/RegisterPortal";
+import LoginPortal from "./pages/LoginPortal"; // 🔥 TAMBAHAN
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Libary";
@@ -16,6 +17,7 @@ import AdminPanel from "./pages/AdminPanel";
 
 // Staff Data
 import { EAS_STAFF_LIST } from "./api/staff";
+
 
 // --- 🛡️ PROTECTED ROUTE ---
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -34,17 +36,17 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  // 1. Belum login
+  // 🔥 BELUM LOGIN
   if (!user && !localUser) {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  // 2. Belum verifikasi ID
+  // 🔥 BELUM VERIFIKASI → WAJIB KE ACCESS PORTAL
   if (!isVerified && location.pathname !== "/access-portal") {
     return <Navigate to="/access-portal" replace />;
   }
 
-  // 3. Admin check
+  // 🔥 ADMIN CHECK
   if (adminOnly) {
     const staff = EAS_STAFF_LIST[localUser?.nama?.toLowerCase()];
     if (!staff || staff.level < 1) {
@@ -56,21 +58,16 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
+
 // --- 🚀 MAIN APP ---
 function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [user] = useAuthState(auth);
   const localUser = localStorage.getItem("eas_user_data");
 
-  // 🔥 FIX INTRO LOGIC
   useEffect(() => {
     const introDone = localStorage.getItem("intro_viewed");
-
-    if (!introDone) {
-      setShowIntro(true);
-    } else {
-      setShowIntro(false);
-    }
+    setShowIntro(!introDone);
   }, []);
 
   const handleIntroFinish = () => {
@@ -82,15 +79,17 @@ function App() {
     <Router>
       <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500">
 
-        {/* 🔥 INTRO LAYER */}
+        {/* 🔥 INTRO */}
         {showIntro && <Intro onFinish={handleIntroFinish} />}
 
-        {/* 🔥 MAIN APP */}
         <div className={showIntro ? "hidden" : "block pb-24"}>
           <Routes>
 
+            {/* 🔥 AUTH SYSTEM */}
             <Route path="/register" element={<RegisterPortal />} />
+            <Route path="/login" element={<LoginPortal />} /> {/* 🔥 LOGIN BARU */}
 
+            {/* 🔥 ACCESS PORTAL */}
             <Route
               path="/access-portal"
               element={
@@ -100,6 +99,7 @@ function App() {
               }
             />
 
+            {/* 🔥 MAIN APP */}
             <Route
               path="/"
               element={
@@ -136,6 +136,7 @@ function App() {
               }
             />
 
+            {/* 🔥 ADMIN */}
             <Route
               path="/admin"
               element={
@@ -145,7 +146,9 @@ function App() {
               }
             />
 
+            {/* 🔥 FALLBACK */}
             <Route path="*" element={<Navigate to="/" replace />} />
+
           </Routes>
 
           {/* 🔥 NAVBAR */}
