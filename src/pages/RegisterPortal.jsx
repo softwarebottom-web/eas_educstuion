@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, supabaseMedia } from "../api/config";
 import { collection, addDoc } from "firebase/firestore";
-import { Image } from "lucide-react";
+import { Image, UploadCloud, User, MapPin, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const RegisterPortal = () => {
@@ -63,7 +63,6 @@ const RegisterPortal = () => {
       const fileExt = photo.name.split(".").pop();
       const fileName = `gen${gen}_${Date.now()}.${fileExt}`;
 
-      // 🔥 Upload ke Supabase
       const { error } = await supabaseMedia.storage
         .from("eas-idcard")
         .upload(fileName, photo);
@@ -75,10 +74,8 @@ const RegisterPortal = () => {
         .getPublicUrl(fileName);
 
       const userData = {
-        nama: form.nama.trim(),
+        ...form,
         umur: umurNum,
-        domisili: form.domisili.trim(),
-        tiktok: form.tiktok.trim(),
         gen,
         photo: data.publicUrl,
         verified: false,
@@ -92,11 +89,9 @@ const RegisterPortal = () => {
       );
 
       localStorage.setItem("eas_user_data", JSON.stringify(userData));
-
       navigate("/access-portal");
 
     } catch (err) {
-      console.error(err);
       alert("Upload gagal: " + err.message);
     } finally {
       setLoading(false);
@@ -104,22 +99,32 @@ const RegisterPortal = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#00050d] text-white p-6">
-      <div className="w-full max-w-md p-8 bg-blue-950/10 rounded-3xl border border-blue-500/20">
+    <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-6">
 
-        <h2 className="text-xl font-black text-center mb-6">
-          EAS REGISTER
-        </h2>
+      {/* CARD */}
+      <div className="w-full max-w-md p-8 bg-gradient-to-br from-blue-950/20 to-black rounded-3xl border border-blue-500/20 shadow-xl">
 
-        {/* 🔥 PILIH GEN */}
-        <div className="flex gap-2 mb-4">
-          {[1,2].map(g => (
+        {/* HEADER */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-black tracking-widest text-blue-400">
+            EAS REGISTER
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Join the secure access system
+          </p>
+        </div>
+
+        {/* GEN SELECTOR */}
+        <div className="grid grid-cols-2 gap-2 mb-6">
+          {[1, 2].map((g) => (
             <button
               key={g}
               onClick={() => setGen(g)}
-              className={`flex-1 p-2 rounded-xl text-xs font-bold ${
-                gen === g ? "bg-blue-600" : "bg-gray-800"
-              }`}
+              className={`p-3 rounded-xl text-xs font-bold transition-all
+                ${gen === g
+                  ? "bg-blue-600 shadow-lg"
+                  : "bg-gray-900 border border-gray-800 text-gray-400"}
+              `}
             >
               GEN {g}
             </button>
@@ -130,36 +135,97 @@ const RegisterPortal = () => {
 
           {/* FOTO */}
           <div className="text-center">
-            <label className="cursor-pointer">
+            <label className="cursor-pointer group">
               {preview ? (
-                <img src={preview} className="w-24 h-24 rounded-full mx-auto object-cover"/>
+                <img
+                  src={preview}
+                  className="w-24 h-24 rounded-full mx-auto object-cover border-2 border-blue-500 shadow-md"
+                />
               ) : (
-                <div className="w-24 h-24 mx-auto flex items-center justify-center border rounded-full">
-                  <Image />
+                <div className="w-24 h-24 mx-auto flex flex-col items-center justify-center border border-dashed border-gray-600 rounded-full group-hover:border-blue-400 transition-all">
+                  <UploadCloud size={20} className="text-gray-500" />
+                  <span className="text-[8px] text-gray-500 mt-1">UPLOAD</span>
                 </div>
               )}
-              <input type="file" hidden onChange={handlePhoto}/>
+              <input type="file" hidden onChange={handlePhoto} />
             </label>
+            <p className="text-xs text-gray-500 mt-2">
+              Upload ID Card (Max 2MB)
+            </p>
           </div>
 
-          <input placeholder="Nama" className="input" onChange={e => setForm({...form, nama: e.target.value})}/>
-          <input type="number" placeholder="Umur" className="input" onChange={e => setForm({...form, umur: e.target.value})}/>
-          <input placeholder="Domisili" className="input" onChange={e => setForm({...form, domisili: e.target.value})}/>
-          <input placeholder="Link TikTok" className="input" onChange={e => setForm({...form, tiktok: e.target.value})}/>
+          {/* INPUTS */}
+          <div className="relative">
+            <User className="input-icon" />
+            <input
+              placeholder="Nama Lengkap"
+              className="input"
+              onChange={(e) => setForm({ ...form, nama: e.target.value })}
+            />
+          </div>
 
-          <button className="btn">
+          <input
+            type="number"
+            placeholder="Umur"
+            className="input"
+            onChange={(e) => setForm({ ...form, umur: e.target.value })}
+          />
+
+          <div className="relative">
+            <MapPin className="input-icon" />
+            <input
+              placeholder="Domisili"
+              className="input"
+              onChange={(e) => setForm({ ...form, domisili: e.target.value })}
+            />
+          </div>
+
+          <div className="relative">
+            <LinkIcon className="input-icon" />
+            <input
+              placeholder="Link TikTok"
+              className="input"
+              onChange={(e) => setForm({ ...form, tiktok: e.target.value })}
+            />
+          </div>
+
+          {/* BUTTON */}
+          <button
+            disabled={loading}
+            className="w-full bg-blue-600 p-4 rounded-xl font-bold tracking-wide hover:bg-blue-700 transition-all active:scale-95"
+          >
             {loading ? "Uploading..." : "Register"}
           </button>
         </form>
 
-        {/* 🔥 LOGIN BUTTON */}
+        {/* LOGIN */}
         <button
           onClick={() => navigate("/login")}
-          className="w-full mt-4 text-xs text-blue-400"
+          className="w-full mt-4 text-xs text-blue-400 hover:text-blue-300"
         >
-          Sudah punya ID? Login disini
+          Sudah punya ID? Login →
         </button>
+
       </div>
+
+      {/* STYLE HELPER */}
+      <style jsx>{`
+        .input {
+          width: 100%;
+          padding: 12px 12px 12px 40px;
+          background: rgba(0,0,0,0.4);
+          border-radius: 12px;
+          font-size: 12px;
+        }
+        .input-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #555;
+          width: 14px;
+        }
+      `}</style>
     </div>
   );
 };
