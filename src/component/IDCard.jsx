@@ -1,53 +1,72 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { Download, ShieldCheck } from "lucide-react";
+import { db } from "../api/config";
+import { doc, getDoc } from "firebase/firestore";
 
-const IDCard = ({ data, gen }) => {
+const IDCard = () => {
   const cardRef = useRef(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [user, setUser] = useState(null);
 
-  const finalGen = gen || data?.gen;
+  // 🔥 FETCH DATA ASLI DARI FIRESTORE
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const docId = localStorage.getItem("eas_doc_id");
+        const gen = localStorage.getItem("eas_gen");
 
-  // 🔒 WAJIB DARI DATABASE
-  const memberId = data?.memberId;
-  const signature = data?.signature;
-  const photo = data?.photo;
+        if (!docId || !gen) {
+          setLoading(false);
+          return;
+        }
 
-  // 🔥 VALIDASI KERAS
-  if (!memberId || !signature || !photo) {
+        const ref = doc(db, `pendaftaran_eas_gen${gen}`, docId);
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) {
+          setLoading(false);
+          return;
+        }
+
+        setUser(snap.data());
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // 🔥 LOADING
+  if (loading) {
+    return <div className="text-white text-xs">Loading ID...</div>;
+  }
+
+  // 🔥 VALIDASI
+  if (!user?.memberId || !user?.signature || !user?.photo) {
     return (
-      <div className="text-red-500 text-xs text-center">
-        DATA INVALID — USER BELUM TERDAFTAR RESMI
+      <div className="text-red-500 text-xs">
+        DATA TIDAK VALID (DATABASE ERROR)
       </div>
     );
   }
 
-  // 🔐 QR VALUE RESMI
-  const qrValue = `EAS|${memberId}|${signature}`;
+  const finalGen = user.gen;
+  const memberId = user.memberId;
+  const signature = user.signature;
 
+  const qrValue = `EAS|${memberId}|${signature}`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrValue)}`;
 
-  const safeName = (data?.nama || "Member")
-    .replace(/[^a-z0-9]/gi, "_")
-    .toUpperCase();
-
   const downloadCard = async () => {
-    if (!cardRef.current || loading) return;
-    setLoading(true);
+    if (!cardRef.current || downloading) return;
+    setDownloading(true);
 
     try {
-      const imgs = cardRef.current.querySelectorAll("img");
-      await Promise.all(
-        Array.from(imgs).map(
-          (img) =>
-            new Promise((res) => {
-              if (img.complete) return res();
-              img.onload = res;
-              img.onerror = res;
-            })
-        )
-      );
-
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#00050d",
         scale: 3,
@@ -55,21 +74,19 @@ const IDCard = ({ data, gen }) => {
       });
 
       const link = document.createElement("a");
-      link.download = `EAS_ID_${safeName}.png`;
+      link.download = `EAS_ID_${memberId}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
       console.error(e);
-      alert("Download gagal");
     } finally {
-      setLoading(false);
+      setDownloading(false);
     }
   };
 
   return (
     <div className="flex flex-col items-center">
 
-      {/* CARD */}
       <div
         ref={cardRef}
         className={`w-80 h-52 p-4 rounded-[1.8rem] border relative overflow-hidden shadow-xl
@@ -79,56 +96,42 @@ const IDCard = ({ data, gen }) => {
         `}
       >
 
-        {/* TEXTURE */}
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-
         {/* HEADER */}
-        <div className="relative z-10 flex justify-between items-center mb-3">
+        <div className="flex justify-between mb-3">
           <div>
-            <p className="text-[7px] text-blue-400 font-black uppercase tracking-widest">
+            <p className="text-[7px] text-blue-400 font-black">
               EAS Secure Division
             </p>
-            <h3 className="text-lg font-black tracking-widest">
-              GEN {finalGen}
-            </h3>
+            <h3 className="text-lg font-black">GEN {finalGen}</h3>
           </div>
-
-          <ShieldCheck className="text-blue-500 opacity-70" size={18} />
+          <ShieldCheck size={18} className="text-blue-500" />
         </div>
 
         {/* BODY */}
-        <div className="relative z-10 flex gap-3">
+        <div className="flex gap-3">
 
-          {/* FOTO (REAL DARI SUPABASE) */}
-          <div className="w-16 h-20 rounded-lg overflow-hidden border border-gray-700 bg-black">
-            <img
-              src={photo}
-              alt="profile"
-              className="w-full h-full object-cover"
-              crossOrigin="anonymous"
-            />
-          </div>
+          {/* FOTO */}
+          <img
+            src={user.photo}
+            className="w-16 h-20 object-cover rounded border"
+          />
 
           {/* INFO */}
-          <div className="flex flex-col justify-between flex-1">
+          <div className="flex flex-col justify-between">
 
             <div>
               <p className="text-[7px] text-gray-500">NAME</p>
-              <p className="text-sm font-bold truncate">
-                {data?.nama}
-              </p>
+              <p className="text-sm font-bold">{user.nama}</p>
             </div>
 
             <div>
               <p className="text-[7px] text-gray-500">DOMISILI</p>
-              <p className="text-[9px] text-gray-300 truncate">
-                {data?.domisili}
-              </p>
+              <p className="text-[9px]">{user.domisili}</p>
             </div>
 
             <div>
               <p className="text-[7px] text-gray-500">MEMBER ID</p>
-              <p className="text-[11px] font-mono text-blue-400 tracking-wider bg-black/40 px-2 py-1 rounded inline-block">
+              <p className="text-[11px] font-mono text-blue-400">
                 {memberId}
               </p>
             </div>
@@ -136,37 +139,15 @@ const IDCard = ({ data, gen }) => {
           </div>
 
           {/* QR */}
-          <div className="flex flex-col items-center justify-between">
-
-            <img
-              src={qrSrc}
-              alt="qr"
-              className="w-14 h-14 bg-white p-1 rounded-md border border-gray-300"
-            />
-
-            <p className="text-[6px] font-bold tracking-widest text-green-400">
-              VERIFIED
-            </p>
-          </div>
+          <img src={qrSrc} className="w-14 h-14 bg-white p-1 rounded" />
         </div>
-
-        {/* LINE */}
-        <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-30" />
-
-        {/* WATERMARK */}
-        <ShieldCheck
-          className="absolute -bottom-10 -right-10 opacity-5"
-          size={160}
-        />
       </div>
 
-      {/* BUTTON */}
       <button
         onClick={downloadCard}
-        disabled={loading}
-        className="mt-5 px-6 py-3 bg-blue-600 rounded-xl text-xs font-bold tracking-widest hover:bg-blue-700 transition-all active:scale-95"
+        className="mt-5 px-6 py-3 bg-blue-600 rounded-xl text-xs font-bold"
       >
-        {loading ? "PROCESSING..." : "DOWNLOAD ID"}
+        {downloading ? "PROCESSING..." : "DOWNLOAD ID"}
       </button>
     </div>
   );
