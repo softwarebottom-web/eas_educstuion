@@ -1,80 +1,87 @@
 import React, { useState } from "react";
-import { db, supabaseMedia } from "../api/config";
+import { db } from "../api/config";
 import { collection, getDocs } from "firebase/firestore";
+import jsQR from "jsqr";
 import { useNavigate } from "react-router-dom";
 
 const LoginPortal = () => {
-  const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
-    if (!photo) return alert("Upload ID Card!");
+  const handleScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
     setLoading(true);
 
-    try {
-      const fileName = `login_${Date.now()}.jpg`;
+    const img = new Image();
+    const reader = new FileReader();
 
-      // 🔥 Upload sementara
-      await supabaseMedia.storage
-        .from("eas-idcard")
-        .upload(fileName, photo);
+    reader.onload = () => {
+      img.src = reader.result;
+    };
 
-      const { data } = supabaseMedia.storage
-        .from("eas-idcard")
-        .getPublicUrl(fileName);
+    img.onload = async () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
 
-      const uploadedURL = data.publicUrl;
+      canvas.width = img.width;
+      canvas.height = img.height;
 
-      // 🔥 VALIDASI KE FIRESTORE
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+      if (!code) {
+        alert("QR tidak terbaca!");
+        setLoading(false);
+        return;
+      }
+
+      const qrValue = code.data;
+
       let foundUser = null;
 
-      for (let gen of [1,2]) {
+      for (let gen of [1, 2]) {
         const snapshot = await getDocs(collection(db, `pendaftaran_eas_gen${gen}`));
 
         snapshot.forEach(doc => {
           const d = doc.data();
 
-          // 🔥 MATCH PHOTO URL (simple version)
-          if (d.photo === uploadedURL) {
+          if (d.qrValue === qrValue) {
             foundUser = d;
           }
         });
       }
 
       if (!foundUser) {
-        alert("ID tidak dikenali!");
+        alert("ID tidak valid!");
+        setLoading(false);
         return;
       }
 
       localStorage.setItem("eas_user_data", JSON.stringify(foundUser));
-
       navigate("/access-portal");
+    };
 
-    } catch (err) {
-      console.error(err);
-      alert("Login gagal!");
-    } finally {
-      setLoading(false);
-    }
+    reader.readAsDataURL(file);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <form onSubmit={handleLogin} className="p-6 border rounded-xl space-y-4">
-        
-        <h2 className="font-bold text-center">LOGIN VIA ID CARD</h2>
+      <div className="p-6 border rounded-xl text-center space-y-4">
+        <h2 className="font-bold">LOGIN VIA QR ID CARD</h2>
 
-        <input type="file" onChange={e => setPhoto(e.target.files[0])} />
+        <input type="file" onChange={handleScan} />
 
-        <button className="w-full bg-blue-600 p-3 rounded">
-          {loading ? "Checking..." : "Login"}
-        </button>
-      </form>
+        <p className="text-xs text-gray-500">
+          Upload / Scan QR dari ID Card kamu
+        </p>
+
+        {loading && <p>Scanning...</p>}
+      </div>
     </div>
   );
 };
