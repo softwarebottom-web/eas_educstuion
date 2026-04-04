@@ -9,6 +9,8 @@ const LoginPortal = () => {
 
   const navigate = useNavigate();
 
+  const normalize = (val) => val?.toString().trim().toUpperCase();
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -19,19 +21,31 @@ const LoginPortal = () => {
     try {
       let foundUser = null;
 
+      const input = normalize(qrInput);
+
       for (let gen of [1, 2]) {
         const snapshot = await getDocs(
           collection(db, `pendaftaran_eas_gen${gen}`)
         );
 
-        snapshot.forEach((doc) => {
-          const d = doc.data();
+        for (let docSnap of snapshot.docs) {
+          const d = docSnap.data();
 
-          // 🔥 MATCH QR VALUE
-          if (d.qrValue === qrInput || d.memberId === qrInput) {
+          const memberId = normalize(d.memberId);
+          const qrValue = normalize(d.qrValue);
+
+          // 🔥 SUPPORT MULTI FORMAT
+          if (
+            input === memberId ||                       // EAS-2-1234
+            input === qrValue ||                        // EAS|EAS-2-1234
+            input === `EAS|${memberId}`                 // fallback
+          ) {
             foundUser = d;
+            break;
           }
-        });
+        }
+
+        if (foundUser) break;
       }
 
       if (!foundUser) {
@@ -39,7 +53,9 @@ const LoginPortal = () => {
         return;
       }
 
+      // 🔥 SIMPAN SESSION
       localStorage.setItem("eas_user_data", JSON.stringify(foundUser));
+
       navigate("/access-portal");
 
     } catch (err) {
@@ -57,7 +73,7 @@ const LoginPortal = () => {
         <h2 className="font-bold text-center">LOGIN VIA QR / ID</h2>
 
         <input
-          placeholder="Masukkan QR Value / Member ID"
+          placeholder="Contoh: EAS-2-1234 atau EAS|EAS-2-1234"
           className="p-3 bg-gray-900 w-full rounded"
           onChange={(e) => setQrInput(e.target.value)}
         />
