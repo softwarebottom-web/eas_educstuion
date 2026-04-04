@@ -17,7 +17,6 @@ const IDCard = ({ data, gen }) => {
     setLoading(true);
 
     try {
-      // tunggu image load (QR)
       const imgs = cardRef.current.querySelectorAll("img");
       await Promise.all(
         Array.from(imgs).map(
@@ -50,53 +49,88 @@ const IDCard = ({ data, gen }) => {
 
   return (
     <div className="flex flex-col items-center">
+
+      {/* CARD */}
       <div
         ref={cardRef}
-        className={`w-80 h-48 p-6 rounded-[2rem] border-2 relative overflow-hidden ${
-          finalGen === 1 ? "border-blue-600 bg-[#000a1a]" : "border-cyan-600 bg-black"
-        }`}
+        className={`w-80 h-48 p-5 rounded-[1.8rem] border relative overflow-hidden shadow-xl
+        ${finalGen === 1
+          ? "border-blue-600 bg-gradient-to-br from-[#000a1a] to-black"
+          : "border-cyan-600 bg-gradient-to-br from-black to-[#001f2a]"}
+        `}
       >
+        {/* TEXTURE */}
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
 
+        {/* HEADER */}
+        <div className="relative z-10 flex justify-between items-start mb-3">
+          <div>
+            <p className="text-[7px] text-blue-400 font-black uppercase tracking-widest">
+              EAS Secure Division
+            </p>
+            <h3 className="text-lg font-black tracking-widest">
+              GEN {finalGen}
+            </h3>
+          </div>
+
+          <ShieldCheck className="text-blue-500 opacity-70" size={18} />
+        </div>
+
+        {/* BODY */}
         <div className="relative z-10 flex justify-between h-full">
+
+          {/* LEFT */}
           <div className="flex flex-col justify-between">
-            <div>
-              <p className="text-[8px] text-blue-500 font-black uppercase">
-                Official Researcher
-              </p>
-              <h3 className="text-xl font-black">
-                GEN {finalGen}
-              </h3>
-            </div>
 
             <div>
-              <p className="text-[7px] text-gray-500">Name</p>
+              <p className="text-[7px] text-gray-500">NAME</p>
               <p className="text-sm font-bold truncate w-40">
                 {data?.nama || "Unknown"}
               </p>
             </div>
+
+            <div>
+              <p className="text-[7px] text-gray-500">MEMBER ID</p>
+              <p className="text-[10px] font-mono text-blue-400">
+                {data?.memberId || "EAS-XXXX"}
+              </p>
+            </div>
+
           </div>
 
+          {/* RIGHT (QR) */}
           <div className="flex flex-col items-center justify-center gap-2">
+
+            {/* 🔥 PAKAI QR ASLI DARI DATABASE */}
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${safeName}`}
+              src={data?.qrImage || ""}
               alt="qr"
-              className="w-12 h-12 bg-white p-1 rounded"
-              crossOrigin="anonymous"
+              className="w-14 h-14 bg-white p-1 rounded-md border border-gray-300"
             />
-            <p className="text-[6px] text-blue-400">Verified</p>
+
+            <p className="text-[6px] text-green-400 font-bold tracking-widest">
+              VERIFIED
+            </p>
           </div>
         </div>
 
-        <ShieldCheck className="absolute -bottom-8 -right-8 opacity-10" size={140} />
+        {/* WATERMARK */}
+        <ShieldCheck
+          className="absolute -bottom-10 -right-10 opacity-5"
+          size={160}
+        />
+
+        {/* LINE */}
+        <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-30" />
       </div>
 
+      {/* BUTTON */}
       <button
         onClick={downloadCard}
         disabled={loading}
-        className="mt-5 px-6 py-3 bg-blue-600 rounded-xl text-xs font-bold"
+        className="mt-5 px-6 py-3 bg-blue-600 rounded-xl text-xs font-bold tracking-widest hover:bg-blue-700 transition-all active:scale-95"
       >
-        {loading ? "PROCESSING..." : "Download ID"}
+        {loading ? "PROCESSING..." : "DOWNLOAD ID"}
       </button>
     </div>
   );
