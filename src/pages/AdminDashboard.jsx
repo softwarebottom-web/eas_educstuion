@@ -13,6 +13,7 @@ const AdminDashboard = () => {
   const [tab, setTab] = useState("members");
 
   const [activeStaff, setActiveStaff] = useState(null);
+  const [role, setRole] = useState(null);
 
   const navigate = useNavigate();
 
@@ -36,8 +37,13 @@ const AdminDashboard = () => {
     }
   };
 
-  // 🔥 DELETE
+  // 🔥 DELETE (ROLE CHECK)
   const deleteMember = async (id, gen) => {
+    if (role === "moderator") {
+      alert("Moderator tidak punya akses hapus!");
+      return;
+    }
+
     const confirmDelete = window.confirm("Hapus pendaftar ini?");
     if (!confirmDelete) return;
 
@@ -54,13 +60,28 @@ const AdminDashboard = () => {
   useEffect(() => {
     const token = localStorage.getItem("eas_admin_token");
     const staff = localStorage.getItem("eas_active_staff");
+    const roleLS = localStorage.getItem("eas_admin_role");
+    const expire = localStorage.getItem("eas_admin_expire");
 
-    if (token !== "SUPER_ADMIN_GRANTED_2026") {
+    // ❌ tidak ada token
+    if (!token) {
       console.warn("No admin token");
       navigate("/", { replace: true });
       return;
     }
 
+    // ❌ expired
+    if (!expire || Date.now() > Number(expire)) {
+      console.warn("Token expired");
+      localStorage.removeItem("eas_admin_token");
+      localStorage.removeItem("eas_active_staff");
+      localStorage.removeItem("eas_admin_role");
+      localStorage.removeItem("eas_admin_expire");
+      navigate("/", { replace: true });
+      return;
+    }
+
+    // ❌ tidak ada staff
     if (!staff) {
       console.warn("No active staff");
       navigate("/", { replace: true });
@@ -68,6 +89,7 @@ const AdminDashboard = () => {
     }
 
     setActiveStaff(staff);
+    setRole(roleLS);
     fetchData();
   }, [navigate]);
 
@@ -76,11 +98,22 @@ const AdminDashboard = () => {
     if (window.confirm("Keluar dari admin panel?")) {
       localStorage.removeItem("eas_admin_token");
       localStorage.removeItem("eas_active_staff");
+      localStorage.removeItem("eas_admin_role");
+      localStorage.removeItem("eas_admin_expire");
       navigate("/", { replace: true });
     }
   };
 
-  // 🔥 LOADING UI
+  // 🔥 ANTI BLANK SCREEN
+  if (!activeStaff) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#00050d] text-red-500 font-bold">
+        Unauthorized Access
+      </div>
+    );
+  }
+
+  // 🔥 LOADING
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#00050d] text-blue-500 font-bold">
@@ -103,6 +136,9 @@ const AdminDashboard = () => {
             <ShieldCheck size={14} className="text-blue-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest">
               {activeStaff}
+            </span>
+            <span className="text-[10px] text-blue-300 uppercase">
+              ({role})
             </span>
           </div>
         </div>
@@ -143,8 +179,8 @@ const AdminDashboard = () => {
             <StatCard title="Gen 2" value={listGen2.length} />
           </div>
 
-          <Section title="Gen 1" data={listGen1} gen={1} onDelete={deleteMember} />
-          <Section title="Gen 2" data={listGen2} gen={2} onDelete={deleteMember} />
+          <Section title="Gen 1" data={listGen1} gen={1} onDelete={deleteMember} role={role} />
+          <Section title="Gen 2" data={listGen2} gen={2} onDelete={deleteMember} role={role} />
         </>
       )}
 
@@ -173,14 +209,14 @@ const StatCard = ({ title, value }) => (
   </div>
 );
 
-const Section = ({ title, data, gen, onDelete }) => (
+const Section = ({ title, data, gen, onDelete, role }) => (
   <section className="mb-8">
     <h2 className="text-sm font-black mb-4 uppercase">{title}</h2>
 
     <div className="space-y-3">
       {data.length > 0 ? (
         data.map(u => (
-          <MemberCard key={u.id} data={u} gen={gen} onDelete={onDelete} />
+          <MemberCard key={u.id} data={u} gen={gen} onDelete={onDelete} role={role} />
         ))
       ) : (
         <p className="text-gray-600 text-xs">Kosong</p>
@@ -189,7 +225,7 @@ const Section = ({ title, data, gen, onDelete }) => (
   </section>
 );
 
-const MemberCard = ({ data, gen, onDelete }) => (
+const MemberCard = ({ data, gen, onDelete, role }) => (
   <div className="p-4 rounded-xl border bg-gray-950/50 flex justify-between items-center">
     
     <div>
@@ -201,7 +237,7 @@ const MemberCard = ({ data, gen, onDelete }) => (
 
     <div className="flex gap-2">
       <a 
-        href={`https://tiktok.com/@${data.tiktok}`}
+        href={`https://tiktok.com/${(data.tiktok || "").replace("@","")}`}
         target="_blank"
         rel="noopener noreferrer"
         className="p-2 bg-gray-900 rounded-lg"
@@ -209,12 +245,14 @@ const MemberCard = ({ data, gen, onDelete }) => (
         <ExternalLink size={14} />
       </a>
 
-      <button 
-        onClick={() => onDelete(data.id, gen)}
-        className="p-2 bg-red-900/40 text-red-400 rounded-lg"
-      >
-        <Trash2 size={14} />
-      </button>
+      {(role === "admin" || role === "superadmin") && (
+        <button 
+          onClick={() => onDelete(data.id, gen)}
+          className="p-2 bg-red-900/40 text-red-400 rounded-lg"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
     </div>
   </div>
 );
