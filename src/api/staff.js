@@ -3,7 +3,7 @@
 
 export const EAS_STAFF_LIST = {
   // Nama harus lowercase semua untuk mempermudah pengecekan di ProtectedRoute
-  "m. fikri surya firdaus": {
+  "Zane": {
     role: "Founder / Owner",
     level: 5,
     tag: "MA-01"
