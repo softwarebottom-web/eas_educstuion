@@ -8,6 +8,16 @@ const IDCard = ({ data, gen }) => {
 
   const finalGen = gen || data?.gen || 1;
 
+  // 🔥 FIX: MEMBER ID FALLBACK
+  const memberId = data?.memberId || `EAS-${finalGen}-XXXX`;
+
+  // 🔥 FIX: QR FALLBACK (kalau qrImage kosong)
+  const qrSrc =
+    data?.qrImage ||
+    `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+      `EAS|${memberId}`
+    )}`;
+
   const safeName = (data?.nama || "Member")
     .replace(/[^a-z0-9]/gi, "_")
     .toUpperCase();
@@ -50,7 +60,6 @@ const IDCard = ({ data, gen }) => {
   return (
     <div className="flex flex-col items-center">
 
-      {/* CARD */}
       <div
         ref={cardRef}
         className={`w-80 h-48 p-5 rounded-[1.8rem] border relative overflow-hidden shadow-xl
@@ -59,6 +68,7 @@ const IDCard = ({ data, gen }) => {
           : "border-cyan-600 bg-gradient-to-br from-black to-[#001f2a]"}
         `}
       >
+
         {/* TEXTURE */}
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
 
@@ -91,21 +101,23 @@ const IDCard = ({ data, gen }) => {
 
             <div>
               <p className="text-[7px] text-gray-500">MEMBER ID</p>
-              <p className="text-[10px] font-mono text-blue-400">
-                {data?.memberId || "EAS-XXXX"}
+
+              {/* 🔥 FIX: BIAR MENONJOL */}
+              <p className="text-[11px] font-mono text-blue-400 tracking-wider bg-black/40 px-2 py-1 rounded">
+                {memberId}
               </p>
             </div>
 
           </div>
 
-          {/* RIGHT (QR) */}
+          {/* RIGHT */}
           <div className="flex flex-col items-center justify-center gap-2">
 
-            {/* 🔥 PAKAI QR ASLI DARI DATABASE */}
             <img
-              src={data?.qrImage || ""}
+              src={qrSrc}
               alt="qr"
               className="w-14 h-14 bg-white p-1 rounded-md border border-gray-300"
+              crossOrigin="anonymous"
             />
 
             <p className="text-[6px] text-green-400 font-bold tracking-widest">
@@ -124,7 +136,6 @@ const IDCard = ({ data, gen }) => {
         <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-30" />
       </div>
 
-      {/* BUTTON */}
       <button
         onClick={downloadCard}
         disabled={loading}
