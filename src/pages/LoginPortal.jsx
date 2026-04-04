@@ -1,87 +1,72 @@
 import React, { useState } from "react";
 import { db } from "../api/config";
 import { collection, getDocs } from "firebase/firestore";
-import jsQR from "jsqr";
 import { useNavigate } from "react-router-dom";
 
 const LoginPortal = () => {
+  const [qrInput, setQrInput] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const handleScan = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    if (!qrInput) return alert("Masukkan QR / Member ID!");
 
     setLoading(true);
 
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      img.src = reader.result;
-    };
-
-    img.onload = async () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      ctx.drawImage(img, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-      if (!code) {
-        alert("QR tidak terbaca!");
-        setLoading(false);
-        return;
-      }
-
-      const qrValue = code.data;
-
+    try {
       let foundUser = null;
 
       for (let gen of [1, 2]) {
-        const snapshot = await getDocs(collection(db, `pendaftaran_eas_gen${gen}`));
+        const snapshot = await getDocs(
+          collection(db, `pendaftaran_eas_gen${gen}`)
+        );
 
-        snapshot.forEach(doc => {
+        snapshot.forEach((doc) => {
           const d = doc.data();
 
-          if (d.qrValue === qrValue) {
+          // 🔥 MATCH QR VALUE
+          if (d.qrValue === qrInput || d.memberId === qrInput) {
             foundUser = d;
           }
         });
       }
 
       if (!foundUser) {
-        alert("ID tidak valid!");
-        setLoading(false);
+        alert("ID tidak dikenali!");
         return;
       }
 
       localStorage.setItem("eas_user_data", JSON.stringify(foundUser));
       navigate("/access-portal");
-    };
 
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      alert("Login gagal!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="p-6 border rounded-xl text-center space-y-4">
-        <h2 className="font-bold">LOGIN VIA QR ID CARD</h2>
+      <form onSubmit={handleLogin} className="p-6 border rounded-xl space-y-4">
 
-        <input type="file" onChange={handleScan} />
+        <h2 className="font-bold text-center">LOGIN VIA QR / ID</h2>
 
-        <p className="text-xs text-gray-500">
-          Upload / Scan QR dari ID Card kamu
-        </p>
+        <input
+          placeholder="Masukkan QR Value / Member ID"
+          className="p-3 bg-gray-900 w-full rounded"
+          onChange={(e) => setQrInput(e.target.value)}
+        />
 
-        {loading && <p>Scanning...</p>}
-      </div>
+        <button className="w-full bg-blue-600 p-3 rounded">
+          {loading ? "Checking..." : "Login"}
+        </button>
+
+      </form>
     </div>
   );
 };
