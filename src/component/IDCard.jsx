@@ -1,16 +1,17 @@
 import React, { useRef, useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { Download, ShieldCheck } from "lucide-react";
-import { db } from "../api/config";
+import { db, supabaseMedia } from "../api/config";
 import { doc, getDoc } from "firebase/firestore";
 
 const IDCard = () => {
   const cardRef = useRef(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [user, setUser] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState("");
 
-  // 🔥 FETCH DATA ASLI DARI FIRESTORE
+  // 🔥 FETCH FIRESTORE
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -30,9 +31,15 @@ const IDCard = () => {
           return;
         }
 
-        setUser(snap.data());
+        const data = snap.data();
+        setUser(data);
+
+        // 🔥 HANDLE FOTO SUPABASE
+        if (data.photo) {
+          setPhotoUrl(data.photo);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -47,26 +54,39 @@ const IDCard = () => {
   }
 
   // 🔥 VALIDASI
-  if (!user?.memberId || !user?.signature || !user?.photo) {
+  if (!user?.memberId || !user?.signature) {
     return (
       <div className="text-red-500 text-xs">
-        DATA TIDAK VALID (DATABASE ERROR)
+        DATA INVALID (DATABASE ERROR)
       </div>
     );
   }
 
-  const finalGen = user.gen;
   const memberId = user.memberId;
   const signature = user.signature;
+  const finalGen = user.gen;
 
   const qrValue = `EAS|${memberId}|${signature}`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrValue)}`;
 
+  // 🔥 DOWNLOAD FIX (ANTI ERROR IMAGE)
   const downloadCard = async () => {
     if (!cardRef.current || downloading) return;
     setDownloading(true);
 
     try {
+      const images = cardRef.current.querySelectorAll("img");
+      await Promise.all(
+        Array.from(images).map(
+          (img) =>
+            new Promise((res) => {
+              if (img.complete) return res();
+              img.onload = res;
+              img.onerror = res;
+            })
+        )
+      );
+
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#00050d",
         scale: 3,
@@ -78,7 +98,8 @@ const IDCard = () => {
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
-      console.error(e);
+      console.error("Download error:", e);
+      alert("Gagal download ID");
     } finally {
       setDownloading(false);
     }
@@ -87,9 +108,10 @@ const IDCard = () => {
   return (
     <div className="flex flex-col items-center">
 
+      {/* CARD */}
       <div
         ref={cardRef}
-        className={`w-80 h-52 p-4 rounded-[1.8rem] border relative overflow-hidden shadow-xl
+        className={`w-80 h-52 p-4 rounded-[1.8rem] border shadow-xl
         ${finalGen === 1
           ? "border-blue-600 bg-gradient-to-br from-[#000a1a] to-black"
           : "border-cyan-600 bg-gradient-to-br from-black to-[#001f2a]"}
@@ -110,10 +132,14 @@ const IDCard = () => {
         {/* BODY */}
         <div className="flex gap-3">
 
-          {/* FOTO */}
+          {/* FOTO (SUPABASE SAFE) */}
           <img
-            src={user.photo}
+            src={photoUrl || "https://via.placeholder.com/100"}
+            onError={(e) => {
+              e.target.src = "https://via.placeholder.com/100";
+            }}
             className="w-16 h-20 object-cover rounded border"
+            crossOrigin="anonymous"
           />
 
           {/* INFO */}
@@ -139,10 +165,15 @@ const IDCard = () => {
           </div>
 
           {/* QR */}
-          <img src={qrSrc} className="w-14 h-14 bg-white p-1 rounded" />
+          <img
+            src={qrSrc}
+            className="w-14 h-14 bg-white p-1 rounded"
+            crossOrigin="anonymous"
+          />
         </div>
       </div>
 
+      {/* BUTTON */}
       <button
         onClick={downloadCard}
         className="mt-5 px-6 py-3 bg-blue-600 rounded-xl text-xs font-bold"
