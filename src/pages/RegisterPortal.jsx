@@ -3,6 +3,7 @@ import { db, supabaseMedia } from "../api/config";
 import { collection, addDoc } from "firebase/firestore";
 import { Image, UploadCloud, User, MapPin, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
 
 const RegisterPortal = () => {
   const [gen, setGen] = useState(2);
@@ -63,6 +64,7 @@ const RegisterPortal = () => {
       const fileExt = photo.name.split(".").pop();
       const fileName = `gen${gen}_${Date.now()}.${fileExt}`;
 
+      // 🔥 Upload foto
       const { error } = await supabaseMedia.storage
         .from("eas-idcard")
         .upload(fileName, photo);
@@ -73,25 +75,40 @@ const RegisterPortal = () => {
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
+      // 🔥 GENERATE MEMBER ID
+      const memberId = `EAS-${gen}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // 🔥 QR VALUE (ini yang nanti dipakai login)
+      const qrValue = `EAS|${memberId}`;
+
+      // 🔥 GENERATE QR IMAGE
+      const qrImage = await QRCode.toDataURL(qrValue);
+
       const userData = {
         ...form,
         umur: umurNum,
         gen,
         photo: data.publicUrl,
+        memberId,
+        qrValue,
+        qrImage,
         verified: false,
-        memberId: `EAS-${gen}-${Math.floor(1000 + Math.random() * 9000)}`,
         timestamp: new Date().toISOString()
       };
 
+      // 🔥 SAVE KE FIRESTORE
       await addDoc(
         collection(db, `pendaftaran_eas_gen${gen}`),
         userData
       );
 
+      // 🔥 SAVE LOCAL
       localStorage.setItem("eas_user_data", JSON.stringify(userData));
+
       navigate("/access-portal");
 
     } catch (err) {
+      console.error(err);
       alert("Upload gagal: " + err.message);
     } finally {
       setLoading(false);
@@ -101,7 +118,6 @@ const RegisterPortal = () => {
   return (
     <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-6">
 
-      {/* CARD */}
       <div className="w-full max-w-md p-8 bg-gradient-to-br from-blue-950/20 to-black rounded-3xl border border-blue-500/20 shadow-xl">
 
         {/* HEADER */}
@@ -110,15 +126,16 @@ const RegisterPortal = () => {
             EAS REGISTER
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Join the secure access system
+            Secure Identity Enrollment
           </p>
         </div>
 
-        {/* GEN SELECTOR */}
+        {/* GEN */}
         <div className="grid grid-cols-2 gap-2 mb-6">
           {[1, 2].map((g) => (
             <button
               key={g}
+              type="button"
               onClick={() => setGen(g)}
               className={`p-3 rounded-xl text-xs font-bold transition-all
                 ${gen === g
@@ -154,7 +171,7 @@ const RegisterPortal = () => {
             </p>
           </div>
 
-          {/* INPUTS */}
+          {/* INPUT */}
           <div className="relative">
             <User className="input-icon" />
             <input
@@ -194,7 +211,7 @@ const RegisterPortal = () => {
             disabled={loading}
             className="w-full bg-blue-600 p-4 rounded-xl font-bold tracking-wide hover:bg-blue-700 transition-all active:scale-95"
           >
-            {loading ? "Uploading..." : "Register"}
+            {loading ? "Encrypting Identity..." : "Register"}
           </button>
         </form>
 
@@ -208,7 +225,6 @@ const RegisterPortal = () => {
 
       </div>
 
-      {/* STYLE HELPER */}
       <style jsx>{`
         .input {
           width: 100%;
