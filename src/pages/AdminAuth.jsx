@@ -1,63 +1,72 @@
 import React, { useState, useEffect } from "react";
 import { ShieldAlert, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { STAFF_LIST } from "../api/staff";
 
 const AdminAuth = ({ isOpen, onClose, userData }) => {
   const navigate = useNavigate();
   const [passkey, setPasskey] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setPasskey("");
-    }
+    if (isOpen) setPasskey("");
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleAdminAuth = (e) => {
+  const handleAdminAuth = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
-    const adminEnv = import.meta.env.VITE_ADMIN_LIST || "";
-    const adminList = adminEnv
-      .split(",")
-      .map((name) => name.trim().toLowerCase());
+    setLoading(true);
 
-    const masterKey = import.meta.env.VITE_ADMIN_MASTER_KEY;
+    try {
+      const masterKey = import.meta.env.VITE_ADMIN_MASTER_KEY;
+      const currentName = userData?.nama?.toLowerCase();
 
-    const currentName = userData?.nama?.toLowerCase();
-
-    // 🔐 VALIDASI ADMIN
-    if (adminList.includes(currentName) && passkey === masterKey) {
-
-      // TOKEN ADMIN
-      localStorage.setItem("eas_admin_token", "SUPER_ADMIN_GRANTED_2026");
-
-      // 🔥 PENTING: dashboard butuh ini
-      localStorage.setItem(
-        "eas_active_staff",
-        userData?.nama || "ADMIN"
+      // 🔥 VALIDASI KE STAFF.JS (BUKAN ENV DOANG)
+      const staff = STAFF_LIST.find(
+        (s) => s.nickname.toLowerCase() === currentName
       );
 
-      alert(`WELCOME COMMANDER: ${userData?.nama || "ADMIN"}`);
+      if (!staff) {
+        alert("DENIED: Anda bukan staff terdaftar!");
+        return;
+      }
+
+      if (passkey !== masterKey) {
+        alert("DENIED: Master key salah!");
+        return;
+      }
+
+      // 🔐 GENERATE SESSION
+      const expireTime = Date.now() + 1000 * 60 * 60; // 1 jam
+
+      localStorage.setItem("eas_admin_token", "EAS_ADMIN_SESSION");
+      localStorage.setItem("eas_active_staff", staff.nickname);
+      localStorage.setItem("eas_admin_role", staff.role);
+      localStorage.setItem("eas_admin_expire", expireTime.toString());
+
+      alert(`ACCESS GRANTED: ${staff.nickname} (${staff.role})`);
 
       onClose();
-
-      // redirect ke dashboard admin
       navigate("/admin", { replace: true });
 
-    } else {
-      alert("DENIED: Anda bukan admin atau key salah!");
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi error saat autentikasi");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
 
-      <div
-        className="absolute inset-0"
-        onClick={onClose}
-      ></div>
+      {/* BACKDROP */}
+      <div className="absolute inset-0" onClick={onClose}></div>
 
+      {/* MODAL */}
       <div className="relative w-full max-w-sm p-10 border border-red-900/30 rounded-[2.5rem] bg-black/90 text-center shadow-[0_0_60px_rgba(153,27,27,0.2)] z-10">
 
         <div className="bg-red-950/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
@@ -78,6 +87,8 @@ const AdminAuth = ({ isOpen, onClose, userData }) => {
         </p>
 
         <form onSubmit={handleAdminAuth} className="space-y-4">
+
+          {/* INPUT */}
           <div className="relative">
             <Lock
               className="absolute left-4 top-1/2 -translate-y-1/2 text-red-900"
@@ -94,14 +105,21 @@ const AdminAuth = ({ isOpen, onClose, userData }) => {
             />
           </div>
 
+          {/* BUTTON */}
           <button
             type="submit"
-            className="w-full bg-red-600/10 border border-red-500/30 py-4 rounded-2xl font-black text-[10px] text-red-500 hover:bg-red-600 hover:text-white transition-all uppercase tracking-[0.2em] active:scale-95"
+            disabled={loading}
+            className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all
+              ${loading
+                ? "bg-red-900/20 text-red-700"
+                : "bg-red-600/10 border border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white"}
+            `}
           >
-            Authorize Access
+            {loading ? "AUTHORIZING..." : "Authorize Access"}
           </button>
         </form>
 
+        {/* CANCEL */}
         <button
           onClick={onClose}
           className="mt-6 text-[8px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
@@ -112,7 +130,6 @@ const AdminAuth = ({ isOpen, onClose, userData }) => {
         <p className="mt-6 text-[7px] text-red-900 font-bold uppercase tracking-[0.5em]">
           EAS Security Layer
         </p>
-
       </div>
     </div>
   );
