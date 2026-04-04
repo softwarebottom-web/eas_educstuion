@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldAlert, Scale, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
 const Intro = ({ onFinish }) => {
-  const [step, setStep] = useState(1); // 1: Animasi Logo, 2: UUD & Sanksi
+  const [step, setStep] = useState(1);
   const [openPasal, setOpenPasal] = useState(null);
 
   const togglePasal = (id) => setOpenPasal(openPasal === id ? null : id);
 
-  // DATA UUD & SANKSI
+  // 🔊 SOUND (dipanggil saat user klik, biar ga kena block browser)
+  const playWelcomeSound = () => {
+    const audio = new Audio("/assets/welcome.mp3");
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  };
+
+  const handleStart = () => {
+    playWelcomeSound();
+    setStep(2);
+  };
+
+  // DATA UUD
   const UUD_DATA = [
     { id: 1, title: "Pasal 1: Identitas", content: "• Setiap anggota memiliki hak untuk menjaga identitas masing-masing.\n• Dilarang mengejek identitas satu sama lain.\n• Dilarang menyebarkan identitas sesama anggota tanpa izin resmi." },
     { id: 2, title: "Pasal 2: Anggota", content: "• Hak mendapatkan ilmu, kebahagiaan, dan berbicara.\n• Wajib patuhi aturan dan terima konsekuensi.\n• Bebas stiker (non-dewasa).\n• Dilarang mengaku Admin/memberi SP." },
@@ -30,7 +42,6 @@ const Intro = ({ onFinish }) => {
     <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-4">
       <AnimatePresence mode="wait">
         {step === 1 ? (
-          /* ANIMASI LOGO AWAL */
           <motion.div 
             key="logo"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -38,17 +49,21 @@ const Intro = ({ onFinish }) => {
             exit={{ opacity: 0, y: -50 }}
             className="text-center"
           >
-            <img src="/assets/logo-eas.png" className="w-32 mx-auto mb-6 animate-pulse" />
-            <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">EAS PORTAL</h1>
+            {/* ✅ FIX LOGO PATH */}
+            <img src="/assets/logo_eas.png" className="w-32 mx-auto mb-6 animate-pulse" />
+
+            <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">
+              EAS PORTAL
+            </h1>
+
             <button 
-              onClick={() => setStep(2)}
+              onClick={handleStart}
               className="mt-10 px-8 py-3 bg-blue-600 rounded-full font-bold hover:bg-cyan-500 transition"
             >
               READ CONSTITUTION
             </button>
           </motion.div>
         ) : (
-          /* TAMPILAN UUD & SANKSI */
           <motion.div 
             key="uud"
             initial={{ opacity: 0, x: 50 }}
@@ -57,20 +72,24 @@ const Intro = ({ onFinish }) => {
           >
             <div className="flex items-center gap-2 mb-6 border-b border-blue-900 pb-4">
               <Scale className="text-blue-400" />
-              <h2 className="font-black tracking-widest uppercase">Undang-Undang Marga EAS</h2>
+              <h2 className="font-black tracking-widest uppercase">
+                Undang-Undang Marga EAS
+              </h2>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-              {/* ACCORDION UUD */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {UUD_DATA.map((item) => (
                 <div key={item.id} className="border border-gray-800 rounded-xl overflow-hidden">
                   <button 
                     onClick={() => togglePasal(item.id)}
                     className="w-full p-4 flex justify-between items-center bg-black/40 text-left"
                   >
-                    <span className="text-xs font-bold uppercase text-blue-300">{item.title}</span>
+                    <span className="text-xs font-bold uppercase text-blue-300">
+                      {item.title}
+                    </span>
                     {openPasal === item.id ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                   </button>
+
                   {openPasal === item.id && (
                     <div className="p-4 text-[11px] leading-relaxed text-gray-400 bg-black/20 whitespace-pre-line">
                       {item.content}
@@ -79,17 +98,23 @@ const Intro = ({ onFinish }) => {
                 </div>
               ))}
 
-              {/* SECTION SANKSI */}
+              {/* SANKSI */}
               <div className="mt-8">
                 <div className="flex items-center gap-2 text-red-500 mb-4 font-bold uppercase italic">
                   <ShieldAlert size={18} /> Protocol Sanksi
                 </div>
+
                 {SANKSI_DATA.map((s, idx) => (
                   <div key={idx} className="mb-4 bg-red-950/10 border border-red-900/30 p-4 rounded-xl">
-                    <p className="text-[10px] font-black text-red-400 mb-2 underline tracking-widest">SANKSI {s.type.toUpperCase()}</p>
+                    <p className="text-[10px] font-black text-red-400 mb-2 underline tracking-widest">
+                      SANKSI {s.type.toUpperCase()}
+                    </p>
+
                     <ul className="space-y-1">
                       {s.items.map((txt, i) => (
-                        <li key={i} className="text-[10px] text-gray-400">• {txt}</li>
+                        <li key={i} className="text-[10px] text-gray-400">
+                          • {txt}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -99,7 +124,7 @@ const Intro = ({ onFinish }) => {
 
             <button 
               onClick={onFinish}
-              className="mt-6 w-full py-4 bg-green-600 rounded-2xl font-black tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-green-500 transition shadow-lg shadow-green-900/20"
+              className="mt-6 w-full py-4 bg-green-600 rounded-2xl font-black tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-green-500 transition"
             >
               <CheckCircle2 size={20} /> SAYA PATUH & SETUJU
             </button>
