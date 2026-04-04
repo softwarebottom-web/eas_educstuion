@@ -1,8 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../api/config";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen, LogOut } from "lucide-react";
+import { STAFF_LIST } from "../api/staff";
+
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc
+} from "firebase/firestore";
+
+import {
+  Users,
+  Trash2,
+  ExternalLink,
+  RefreshCcw,
+  ShieldCheck,
+  BookOpen,
+  LogOut
+} from "lucide-react";
 
 import AdminQuiz from "./AdminQuiz";
 
@@ -17,8 +33,12 @@ const AdminDashboard = () => {
 
   const navigate = useNavigate();
 
+  // =========================
   // 🔥 FETCH DATA
+  // =========================
   const fetchData = async () => {
+    if (loading) return;
+
     setLoading(true);
     try {
       const [res1, res2] = await Promise.all([
@@ -26,8 +46,13 @@ const AdminDashboard = () => {
         getDocs(collection(db, "pendaftaran_eas_gen2"))
       ]);
 
-      setListGen1(res1.docs.map(d => ({ id: d.id, ...d.data() })));
-      setListGen2(res2.docs.map(d => ({ id: d.id, ...d.data() })));
+      const mapData = (snap) =>
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      setListGen1(mapData(res1).slice(0, 100));
+      setListGen2(mapData(res2).slice(0, 100));
 
     } catch (err) {
       console.error("Fetch error:", err);
@@ -37,74 +62,78 @@ const AdminDashboard = () => {
     }
   };
 
-  // 🔥 DELETE (ROLE CHECK)
-  const deleteMember = async (id, gen) => {
-    if (role === "moderator") {
-      alert("Moderator tidak punya akses hapus!");
-      return;
-    }
-
-    const confirmDelete = window.confirm("Hapus pendaftar ini?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteDoc(doc(db, `pendaftaran_eas_gen${gen}`, id));
-      fetchData();
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Gagal hapus data");
-    }
-  };
-
-  // 🔐 AUTH CHECK (FIXED)
+  // =========================
+  // 🔐 AUTH CHECK
+  // =========================
   useEffect(() => {
     const token = localStorage.getItem("eas_admin_token");
     const staff = localStorage.getItem("eas_active_staff");
     const roleLS = localStorage.getItem("eas_admin_role");
     const expire = localStorage.getItem("eas_admin_expire");
 
-    // ❌ tidak ada token
-    if (!token) {
-      console.warn("No admin token");
+    if (!token || !staff || !roleLS) {
       navigate("/", { replace: true });
       return;
     }
 
-    // ❌ expired
     if (!expire || Date.now() > Number(expire)) {
-      console.warn("Token expired");
-      localStorage.removeItem("eas_admin_token");
-      localStorage.removeItem("eas_active_staff");
-      localStorage.removeItem("eas_admin_role");
-      localStorage.removeItem("eas_admin_expire");
+      localStorage.clear();
       navigate("/", { replace: true });
       return;
     }
 
-    // ❌ tidak ada staff
-    if (!staff) {
-      console.warn("No active staff");
+    // 🔥 VALIDASI KE STAFF.JS
+    const valid = STAFF_LIST.find(
+      (s) =>
+        s.nickname.toLowerCase() === staff.toLowerCase() &&
+        s.role === roleLS
+    );
+
+    if (!valid) {
+      localStorage.clear();
       navigate("/", { replace: true });
       return;
     }
 
-    setActiveStaff(staff);
-    setRole(roleLS);
+    setActiveStaff(valid.nickname);
+    setRole(valid.role);
+
     fetchData();
   }, [navigate]);
 
-  // 🔥 LOGOUT ADMIN
+  // =========================
+  // 🗑 DELETE MEMBER
+  // =========================
+  const deleteMember = async (id, gen) => {
+    if (!["admin", "superadmin"].includes(role)) {
+      alert("Tidak punya akses!");
+      return;
+    }
+
+    if (!window.confirm("Hapus member ini?")) return;
+
+    try {
+      await deleteDoc(doc(db, `pendaftaran_eas_gen${gen}`, id));
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Gagal hapus");
+    }
+  };
+
+  // =========================
+  // 🔓 LOGOUT
+  // =========================
   const handleLogout = () => {
-    if (window.confirm("Keluar dari admin panel?")) {
-      localStorage.removeItem("eas_admin_token");
-      localStorage.removeItem("eas_active_staff");
-      localStorage.removeItem("eas_admin_role");
-      localStorage.removeItem("eas_admin_expire");
+    if (window.confirm("Keluar dari admin?")) {
+      localStorage.clear();
       navigate("/", { replace: true });
     }
   };
 
-  // 🔥 ANTI BLANK SCREEN
+  // =========================
+  // ❌ UNAUTHORIZED
+  // =========================
   if (!activeStaff) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#00050d] text-red-500 font-bold">
@@ -113,7 +142,9 @@ const AdminDashboard = () => {
     );
   }
 
-  // 🔥 LOADING
+  // =========================
+  // ⏳ LOADING
+  // =========================
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#00050d] text-blue-500 font-bold">
@@ -133,8 +164,8 @@ const AdminDashboard = () => {
           </h1>
 
           <div className="flex items-center gap-2 mt-2 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/30">
-            <ShieldCheck size={14} className="text-blue-400" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">
+            <ShieldCheck size={14} />
+            <span className="text-[10px] font-bold uppercase">
               {activeStaff}
             </span>
             <span className="text-[10px] text-blue-300 uppercase">
@@ -144,18 +175,18 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex gap-2">
-          <button 
-            onClick={fetchData} 
-            className={`p-3 bg-gray-900 rounded-xl border border-gray-800 ${loading && 'animate-spin'}`}
+          <button
+            onClick={fetchData}
+            className="p-3 bg-gray-900 rounded-xl border border-gray-800"
           >
             <RefreshCcw size={18} />
           </button>
 
-          <button 
+          <button
             onClick={handleLogout}
             className="p-3 bg-red-900/20 text-red-400 rounded-xl border border-red-900"
           >
-            <LogOut size={18}/>
+            <LogOut size={18} />
           </button>
         </div>
       </header>
@@ -163,11 +194,11 @@ const AdminDashboard = () => {
       {/* TAB */}
       <div className="flex gap-2 mb-6">
         <TabButton active={tab === "members"} onClick={() => setTab("members")}>
-          <Users size={14}/> Members
+          <Users size={14} /> Members
         </TabButton>
 
         <TabButton active={tab === "quiz"} onClick={() => setTab("quiz")}>
-          <BookOpen size={14}/> Quiz
+          <BookOpen size={14} /> Quiz
         </TabButton>
       </div>
 
@@ -189,8 +220,9 @@ const AdminDashboard = () => {
   );
 };
 
-
-// 🔹 COMPONENTS
+// =========================
+// COMPONENTS
+// =========================
 
 const TabButton = ({ children, active, onClick }) => (
   <button
@@ -215,7 +247,7 @@ const Section = ({ title, data, gen, onDelete, role }) => (
 
     <div className="space-y-3">
       {data.length > 0 ? (
-        data.map(u => (
+        data.map((u) => (
           <MemberCard key={u.id} data={u} gen={gen} onDelete={onDelete} role={role} />
         ))
       ) : (
@@ -227,17 +259,30 @@ const Section = ({ title, data, gen, onDelete, role }) => (
 
 const MemberCard = ({ data, gen, onDelete, role }) => (
   <div className="p-4 rounded-xl border bg-gray-950/50 flex justify-between items-center">
-    
-    <div>
-      <h3 className="font-bold text-sm">{data.nama}</h3>
-      <p className="text-xs text-gray-500">
-        {data.domisili} • {data.umur} THN
-      </p>
+
+    <div className="flex items-center gap-3">
+      <img
+        src={data.photo}
+        alt="profile"
+        className="w-10 h-10 rounded-full object-cover border border-gray-700"
+      />
+
+      <div>
+        <h3 className="font-bold text-sm">{data.nama}</h3>
+
+        <p className="text-[10px] text-blue-400 font-mono">
+          {data.memberId || "NO-ID"}
+        </p>
+
+        <p className="text-xs text-gray-500">
+          {data.domisili} • {data.umur} THN
+        </p>
+      </div>
     </div>
 
     <div className="flex gap-2">
-      <a 
-        href={`https://tiktok.com/${(data.tiktok || "").replace("@","")}`}
+      <a
+        href={data.tiktok}
         target="_blank"
         rel="noopener noreferrer"
         className="p-2 bg-gray-900 rounded-lg"
@@ -246,7 +291,7 @@ const MemberCard = ({ data, gen, onDelete, role }) => (
       </a>
 
       {(role === "admin" || role === "superadmin") && (
-        <button 
+        <button
           onClick={() => onDelete(data.id, gen)}
           className="p-2 bg-red-900/40 text-red-400 rounded-lg"
         >
