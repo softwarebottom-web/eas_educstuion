@@ -33,6 +33,27 @@ const RegisterPortal = () => {
 
   const navigate = useNavigate();
 
+  // 🔊 SIMPLE SOUND (NO FILE)
+  const playClick = () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = 600;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => osc.stop(), 50);
+  };
+
+  const playSuccess = () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 900;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => osc.stop(), 120);
+  };
+
   useEffect(() => {
     return () => preview && URL.revokeObjectURL(preview);
   }, [preview]);
@@ -65,6 +86,8 @@ const RegisterPortal = () => {
   };
 
   const handlePhoto = (e) => {
+    playClick();
+
     const file = e.target.files[0];
     if (!file) return;
 
@@ -91,13 +114,9 @@ const RegisterPortal = () => {
       const email = form.email.toLowerCase().trim();
       const password = "EAS_DEFAULT_PASSWORD";
 
-      // 🔐 CREATE AUTH USER
       await createUserWithEmailAndPassword(auth, email, password);
 
-      // 📸 UPLOAD FOTO
-      const fileName = `gen${gen}_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2)}.jpg`;
+      const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
 
       const { error } = await supabaseMedia.storage
         .from("eas-idcard")
@@ -109,14 +128,12 @@ const RegisterPortal = () => {
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
-      // 🔐 GENERATE ID
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
 
       const umur = getAge(form.dob);
 
-      // 🔥 FIRESTORE
       const userDoc = {
         public: {
           nama: form.nama,
@@ -129,23 +146,17 @@ const RegisterPortal = () => {
           gen,
           role: "member"
         },
-        private: {
-          email
-        },
+        private: { email },
         system: {
           createdAt: new Date().toISOString(),
           verified: false,
           banned: false
         },
-        meta: {
-          qrValue,
-          qrImage
-        }
+        meta: { qrValue, qrImage }
       };
 
       const ref = await addDoc(collection(db, "users"), userDoc);
 
-      // 🔐 LOCAL SESSION
       localStorage.setItem(
         "eas_user_data",
         JSON.stringify({
@@ -156,8 +167,11 @@ const RegisterPortal = () => {
 
       localStorage.setItem("eas_verified", "false");
 
-      // 🚀 REDIRECT LANGSUNG
-      navigate("/access-portal", { replace: true });
+      playSuccess();
+
+      setTimeout(() => {
+        navigate("/access-portal", { replace: true });
+      }, 700);
 
     } catch (err) {
       console.error(err);
@@ -168,45 +182,58 @@ const RegisterPortal = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#00050d] to-[#020617] flex items-center justify-center p-6 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#020617] via-black to-[#020617] flex items-center justify-center p-6 text-white">
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]"
+        initial={{ opacity: 0, y: 40, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl"
       >
 
-        <h2 className="text-center text-xl font-black text-blue-400 mb-6 tracking-wide">
-          EAS REGISTER
-        </h2>
+        {/* HEADER */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-black text-blue-400 tracking-widest">
+            EAS REGISTER
+          </h2>
+          <p className="text-xs text-gray-500">
+            Secure Digital Identity System
+          </p>
+        </div>
 
         {/* GEN */}
         <div className="grid grid-cols-2 gap-2 mb-6">
-          {[1, 2].map((g) => (
-            <button
+          {[1,2].map((g) => (
+            <motion.button
               key={g}
-              type="button"
-              onClick={() => setGen(g)}
-              className={`p-3 rounded-xl text-xs font-bold transition
-              ${
-                gen === g
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-900 text-gray-400"
-              }`}
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => {
+                playClick();
+                setGen(g);
+              }}
+              className={`p-3 rounded-xl text-xs font-bold
+              ${gen === g
+                ? "bg-blue-600 text-white shadow-lg"
+                : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
             >
               GEN {g}
-            </button>
+            </motion.button>
           ))}
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
 
           {/* FOTO */}
-          <label className="flex justify-center cursor-pointer">
+          <label className="flex justify-center cursor-pointer group">
             {preview ? (
-              <img src={preview} className="w-24 h-24 rounded-full object-cover border border-blue-500"/>
+              <motion.img
+                whileHover={{ scale: 1.08 }}
+                src={preview}
+                className="w-24 h-24 rounded-full object-cover border-2 border-blue-500"
+              />
             ) : (
-              <div className="w-24 h-24 border border-dashed flex items-center justify-center rounded-full hover:border-blue-500 transition">
+              <div className="w-24 h-24 border border-dashed rounded-full flex items-center justify-center group-hover:border-blue-500">
                 <UploadCloud size={20}/>
               </div>
             )}
@@ -219,12 +246,12 @@ const RegisterPortal = () => {
           <input
             type="date"
             value={form.dob}
-            className="input"
             onChange={(e)=>setForm({...form,dob:e.target.value})}
+            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           />
 
           {form.dob && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 text-center">
               Umur: {getAge(form.dob)} tahun
             </p>
           )}
@@ -232,27 +259,33 @@ const RegisterPortal = () => {
           <select
             value={form.domisili}
             onChange={(e)=>setForm({...form, domisili: e.target.value})}
-            className="input"
+            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="">Pilih Provinsi</option>
             {DOMISILI.map((d) => (
-              <option key={d} value={d}>{d}</option>
+              <option key={d}>{d}</option>
             ))}
           </select>
 
           <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v)=>setForm({...form,tiktok:v})}/>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={playClick}
             disabled={loading}
-            className="btn"
+            className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg transition disabled:bg-gray-700"
           >
             {loading ? "Processing..." : "Register"}
-          </button>
+          </motion.button>
 
         </form>
 
         <button
-          onClick={() => navigate("/login")}
+          onClick={() => {
+            playClick();
+            navigate("/login");
+          }}
           className="w-full mt-4 text-xs text-blue-400 hover:underline"
         >
           Sudah punya akun? Login →
@@ -268,7 +301,7 @@ const Input = ({ placeholder, value, onChange }) => (
     value={value}
     placeholder={placeholder}
     onChange={(e)=>onChange(e.target.value)}
-    className="input"
+    className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition"
   />
 );
 
