@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db, supabaseMedia, auth } from "../api/config";
 import { collection, addDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
@@ -26,6 +26,7 @@ const RegisterPortal = () => {
   const [form, setForm] = useState({
     nama: "",
     email: "",
+    password: "",
     dob: "",
     domisili: "",
     tiktok: ""
@@ -33,7 +34,6 @@ const RegisterPortal = () => {
 
   const navigate = useNavigate();
 
-  // 🔊 SIMPLE SOUND (NO FILE)
   const playClick = () => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -74,6 +74,8 @@ const RegisterPortal = () => {
     const email = form.email.toLowerCase().trim();
     if (!/\S+@\S+\.\S+/.test(email)) return "Email tidak valid";
 
+    if (form.password.length < 6) return "Password minimal 6 karakter";
+
     if (!form.dob) return "Tanggal lahir wajib";
     if (!form.domisili) return "Pilih domisili";
 
@@ -87,16 +89,10 @@ const RegisterPortal = () => {
 
   const handlePhoto = (e) => {
     playClick();
-
     const file = e.target.files[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/"))
-      return alert("File harus gambar");
-
-    if (file.size > 2 * 1024 * 1024)
-      return alert("Max 2MB");
-
+    if (!file.type.startsWith("image/")) return alert("File harus gambar");
+    if (file.size > 2 * 1024 * 1024) return alert("Max 2MB");
     setPhoto(file);
     setPreview(URL.createObjectURL(file));
   };
@@ -112,9 +108,8 @@ const RegisterPortal = () => {
 
     try {
       const email = form.email.toLowerCase().trim();
-      const password = "EAS_DEFAULT_PASSWORD";
 
-      await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, form.password);
 
       const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
 
@@ -159,23 +154,23 @@ const RegisterPortal = () => {
 
       localStorage.setItem(
         "eas_user_data",
-        JSON.stringify({
-          id: ref.id,
-          ...userDoc.public
-        })
+        JSON.stringify({ id: ref.id, ...userDoc.public })
       );
-
       localStorage.setItem("eas_verified", "false");
 
       playSuccess();
 
-      setTimeout(() => {
-        navigate("/access-portal", { replace: true });
-      }, 700);
+      await new Promise((res) => setTimeout(res, 300));
+
+      navigate("/access-portal", { replace: true });
 
     } catch (err) {
       console.error(err);
-      alert("Error: " + err.message);
+      if (err.code === "auth/email-already-in-use") {
+        alert("Email sudah terdaftar, silakan login");
+      } else {
+        alert("Error: " + err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -196,26 +191,22 @@ const RegisterPortal = () => {
           <h2 className="text-xl font-black text-blue-400 tracking-widest">
             EAS REGISTER
           </h2>
-          <p className="text-xs text-gray-500">
-            Secure Digital Identity System
-          </p>
+          <p className="text-xs text-gray-500">Secure Digital Identity System</p>
         </div>
 
         {/* GEN */}
         <div className="grid grid-cols-2 gap-2 mb-6">
-          {[1,2].map((g) => (
+          {[1, 2].map((g) => (
             <motion.button
               key={g}
+              type="button"
               whileTap={{ scale: 0.9 }}
               whileHover={{ scale: 1.05 }}
-              onClick={() => {
-                playClick();
-                setGen(g);
-              }}
+              onClick={() => { playClick(); setGen(g); }}
               className={`p-3 rounded-xl text-xs font-bold
-              ${gen === g
-                ? "bg-blue-600 text-white shadow-lg"
-                : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
+                ${gen === g
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
             >
               GEN {g}
             </motion.button>
@@ -234,19 +225,40 @@ const RegisterPortal = () => {
               />
             ) : (
               <div className="w-24 h-24 border border-dashed rounded-full flex items-center justify-center group-hover:border-blue-500">
-                <UploadCloud size={20}/>
+                <UploadCloud size={20} />
               </div>
             )}
-            <input type="file" hidden onChange={handlePhoto}/>
+            <input type="file" hidden onChange={handlePhoto} accept="image/*" />
           </label>
 
-          <Input placeholder="Nama" value={form.nama} onChange={(v)=>setForm({...form,nama:v})}/>
-          <Input placeholder="Email" value={form.email} onChange={(v)=>setForm({...form,email:v})}/>
+          <Input
+            placeholder="Nama"
+            value={form.nama}
+            onChange={(v) => setForm({ ...form, nama: v })}
+          />
+
+          <Input
+            placeholder="Email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+          />
+
+          {/* PASSWORD */}
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+            <input
+              type="password"
+              placeholder="Password (min 6 karakter)"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition"
+            />
+          </div>
 
           <input
             type="date"
             value={form.dob}
-            onChange={(e)=>setForm({...form,dob:e.target.value})}
+            onChange={(e) => setForm({ ...form, dob: e.target.value })}
             className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           />
 
@@ -258,7 +270,7 @@ const RegisterPortal = () => {
 
           <select
             value={form.domisili}
-            onChange={(e)=>setForm({...form, domisili: e.target.value})}
+            onChange={(e) => setForm({ ...form, domisili: e.target.value })}
             className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="">Pilih Provinsi</option>
@@ -267,12 +279,16 @@ const RegisterPortal = () => {
             ))}
           </select>
 
-          <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v)=>setForm({...form,tiktok:v})}/>
+          <Input
+            placeholder="Link TikTok"
+            value={form.tiktok}
+            onChange={(v) => setForm({ ...form, tiktok: v })}
+          />
 
           <motion.button
+            type="submit"
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.02 }}
-            onClick={playClick}
             disabled={loading}
             className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg transition disabled:bg-gray-700"
           >
@@ -282,10 +298,8 @@ const RegisterPortal = () => {
         </form>
 
         <button
-          onClick={() => {
-            playClick();
-            navigate("/login");
-          }}
+          type="button"
+          onClick={() => { playClick(); navigate("/login"); }}
           className="w-full mt-4 text-xs text-blue-400 hover:underline"
         >
           Sudah punya akun? Login →
@@ -296,11 +310,12 @@ const RegisterPortal = () => {
   );
 };
 
-const Input = ({ placeholder, value, onChange }) => (
+const Input = ({ placeholder, value, onChange, type = "text" }) => (
   <input
+    type={type}
     value={value}
     placeholder={placeholder}
-    onChange={(e)=>onChange(e.target.value)}
+    onChange={(e) => onChange(e.target.value)}
     className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition"
   />
 );
