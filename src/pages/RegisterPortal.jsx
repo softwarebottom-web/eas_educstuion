@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { db, supabaseMedia, auth } from "../api/config";
+import React, { useState } from "react";
+import { db, auth } from "../api/config";
 import { doc, setDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";
-import { UploadCloud, Lock } from "lucide-react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { Lock, User, Mail, MapPin, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
@@ -20,10 +20,6 @@ const DOMISILI = [
 const RegisterPortal = () => {
   const [gen, setGen] = useState(2);
   const [loading, setLoading] = useState(false);
-  const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState("");
-
   const [form, setForm] = useState({
     nama: "", email: "", password: "", dob: "", domisili: "", tiktok: ""
   });
@@ -54,10 +50,6 @@ const RegisterPortal = () => {
     } catch (_) {}
   };
 
-  useEffect(() => {
-    return () => preview && URL.revokeObjectURL(preview);
-  }, [preview]);
-
   const getAge = (dob) => {
     const birth = new Date(dob);
     const today = new Date();
@@ -68,7 +60,6 @@ const RegisterPortal = () => {
   };
 
   const validate = () => {
-    if (!photo) return "Upload foto dulu";
     if (form.nama.trim().length < 3) return "Nama minimal 3 huruf";
     const email = form.email.toLowerCase().trim();
     if (!/\S+@\S+\.\S+/.test(email)) return "Email tidak valid";
@@ -80,42 +71,6 @@ const RegisterPortal = () => {
     return null;
   };
 
-  const handlePhoto = (e) => {
-    playClick();
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return alert("File harus gambar");
-    if (file.size > 2 * 1024 * 1024) return alert("Max 2MB");
-    setPhoto(file);
-    setPreview(URL.createObjectURL(file));
-  };
-
-  // ✅ Upload foto dulu SEBELUM buat akun
-  const uploadPhoto = async () => {
-    const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-
-    setUploadProgress("Mengupload foto...");
-
-    const { error } = await supabaseMedia.storage
-      .from("eas-idcard")
-      .upload(fileName, photo, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: photo.type
-      });
-
-    if (error) {
-      console.error("Supabase upload error:", error);
-      throw new Error("Upload foto gagal: " + error.message);
-    }
-
-    const { data } = supabaseMedia.storage
-      .from("eas-idcard")
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
-  };
-
   const handleRegister = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -124,24 +79,15 @@ const RegisterPortal = () => {
     if (errorMsg) return alert(errorMsg);
 
     setLoading(true);
-    setUploadProgress("");
-
-    let firebaseUser = null;
 
     try {
       const email = form.email.toLowerCase().trim();
 
-      // ✅ STEP 1: Upload foto DULU sebelum buat akun
-      const photoUrl = await uploadPhoto();
-
-      // ✅ STEP 2: Baru buat akun Firebase Auth
-      setUploadProgress("Membuat akun...");
+      // ✅ Buat akun Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, form.password);
-      firebaseUser = cred.user;
       const uid = cred.user.uid;
 
-      // ✅ STEP 3: Generate data
-      setUploadProgress("Menyimpan data...");
+      // ✅ Generate Member ID & QR
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
@@ -154,7 +100,6 @@ const RegisterPortal = () => {
           dob: form.dob,
           domisili: form.domisili,
           tiktok: form.tiktok,
-          photo: photoUrl,
           memberId,
           gen,
           role: "member"
@@ -168,7 +113,7 @@ const RegisterPortal = () => {
         meta: { qrValue, qrImage }
       };
 
-      // ✅ STEP 4: Simpan ke Firestore
+      // ✅ Simpan ke Firestore pakai UID
       await setDoc(doc(db, "users", uid), userDoc);
 
       localStorage.setItem(
@@ -178,24 +123,12 @@ const RegisterPortal = () => {
       localStorage.setItem("eas_verified", "false");
 
       playSuccess();
-      setUploadProgress("Berhasil! Mengalihkan...");
 
       await new Promise((res) => setTimeout(res, 300));
       navigate("/access-portal", { replace: true });
 
     } catch (err) {
-      console.error("Register error:", err);
-
-      // 🔥 Rollback: hapus akun Firebase kalau Firestore gagal
-      if (firebaseUser) {
-        try {
-          await deleteUser(firebaseUser);
-          console.log("Rolled back Firebase user");
-        } catch (rollbackErr) {
-          console.error("Rollback failed:", rollbackErr);
-        }
-      }
-
+      console.error(err);
       if (err.code === "auth/email-already-in-use") {
         alert("Email sudah terdaftar, silakan login");
       } else {
@@ -203,7 +136,6 @@ const RegisterPortal = () => {
       }
     } finally {
       setLoading(false);
-      setUploadProgress("");
     }
   };
 
@@ -215,11 +147,13 @@ const RegisterPortal = () => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl"
       >
+        {/* HEADER */}
         <div className="text-center mb-6">
           <h2 className="text-xl font-black text-blue-400 tracking-widest">EAS REGISTER</h2>
           <p className="text-xs text-gray-500">Secure Digital Identity System</p>
         </div>
 
+        {/* GEN SELECTOR */}
         <div className="grid grid-cols-2 gap-2 mb-6">
           {[1, 2].map((g) => (
             <motion.button
@@ -228,7 +162,7 @@ const RegisterPortal = () => {
               whileTap={{ scale: 0.9 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => { playClick(); setGen(g); }}
-              className={`p-3 rounded-xl text-xs font-bold
+              className={`p-3 rounded-xl text-xs font-bold transition
                 ${gen === g
                   ? "bg-blue-600 text-white shadow-lg"
                   : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
@@ -238,76 +172,76 @@ const RegisterPortal = () => {
           ))}
         </div>
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <label className="flex justify-center cursor-pointer group">
-            {preview ? (
-              <motion.img
-                whileHover={{ scale: 1.08 }}
-                src={preview}
-                className="w-24 h-24 rounded-full object-cover border-2 border-blue-500"
-              />
-            ) : (
-              <div className="w-24 h-24 border border-dashed rounded-full flex items-center justify-center group-hover:border-blue-500">
-                <UploadCloud size={20} />
-              </div>
-            )}
-            <input type="file" hidden onChange={handlePhoto} accept="image/*" />
-          </label>
+        <form onSubmit={handleRegister} className="space-y-3">
 
-          <Input placeholder="Nama" value={form.nama} onChange={(v) => setForm({ ...form, nama: v })} />
-          <Input placeholder="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+          <InputIcon
+            icon={<User size={14} />}
+            placeholder="Nama lengkap"
+            value={form.nama}
+            onChange={(v) => setForm({ ...form, nama: v })}
+          />
 
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-            <input
-              type="password"
-              placeholder="Password (min 6 karakter)"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition"
-            />
-          </div>
+          <InputIcon
+            icon={<Mail size={14} />}
+            placeholder="Email"
+            type="email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+          />
 
+          <InputIcon
+            icon={<Lock size={14} />}
+            placeholder="Password (min 6 karakter)"
+            type="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
+          />
+
+          {/* DATE OF BIRTH */}
           <input
             type="date"
             value={form.dob}
             onChange={(e) => setForm({ ...form, dob: e.target.value })}
-            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none text-gray-300"
           />
 
           {form.dob && (
-            <p className="text-xs text-gray-400 text-center">
-              Umur: {getAge(form.dob)} tahun
+            <p className="text-xs text-gray-500 text-center">
+              Umur: <span className="text-blue-400 font-bold">{getAge(form.dob)} tahun</span>
             </p>
           )}
 
-          <select
-            value={form.domisili}
-            onChange={(e) => setForm({ ...form, domisili: e.target.value })}
-            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="">Pilih Provinsi</option>
-            {DOMISILI.map((d) => <option key={d}>{d}</option>)}
-          </select>
+          {/* DOMISILI */}
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+            <select
+              value={form.domisili}
+              onChange={(e) => setForm({ ...form, domisili: e.target.value })}
+              className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none text-gray-300"
+            >
+              <option value="">Pilih Provinsi</option>
+              {DOMISILI.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
 
-          <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v) => setForm({ ...form, tiktok: v })} />
-
-          {/* ✅ Progress indicator */}
-          {uploadProgress && (
-            <p className="text-xs text-blue-400 text-center animate-pulse">
-              ⏳ {uploadProgress}
-            </p>
-          )}
+          {/* TIKTOK */}
+          <InputIcon
+            icon={<Video size={14} />}
+            placeholder="Link TikTok (tiktok.com/@...)"
+            value={form.tiktok}
+            onChange={(v) => setForm({ ...form, tiktok: v })}
+          />
 
           <motion.button
             type="submit"
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.02 }}
             disabled={loading}
-            className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg transition disabled:bg-gray-700"
+            className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-sm shadow-lg transition disabled:bg-gray-700 disabled:cursor-not-allowed"
           >
-            {loading ? uploadProgress || "Processing..." : "Register"}
+            {loading ? "Processing..." : "Register"}
           </motion.button>
+
         </form>
 
         <button
@@ -317,18 +251,25 @@ const RegisterPortal = () => {
         >
           Sudah punya akun? Login →
         </button>
+
       </motion.div>
     </div>
   );
 };
 
-const Input = ({ placeholder, value, onChange }) => (
-  <input
-    value={value}
-    placeholder={placeholder}
-    onChange={(e) => onChange(e.target.value)}
-    className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition"
-  />
+const InputIcon = ({ icon, placeholder, value, onChange, type = "text" }) => (
+  <div className="relative">
+    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+      {icon}
+    </div>
+    <input
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-300 placeholder-gray-600"
+    />
+  </div>
 );
 
 export default RegisterPortal;
