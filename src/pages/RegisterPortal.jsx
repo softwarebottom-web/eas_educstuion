@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { db, auth } from "../api/config";
 import { doc, setDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { Lock, User, Mail, MapPin, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
@@ -26,30 +25,6 @@ const RegisterPortal = () => {
 
   const navigate = useNavigate();
 
-  const playClick = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      osc.type = "square";
-      osc.frequency.value = 600;
-      osc.connect(ctx.destination);
-      osc.start();
-      setTimeout(() => osc.stop(), 50);
-    } catch (_) {}
-  };
-
-  const playSuccess = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = 900;
-      osc.connect(ctx.destination);
-      osc.start();
-      setTimeout(() => osc.stop(), 120);
-    } catch (_) {}
-  };
-
   const getAge = (dob) => {
     const birth = new Date(dob);
     const today = new Date();
@@ -61,8 +36,7 @@ const RegisterPortal = () => {
 
   const validate = () => {
     if (form.nama.trim().length < 3) return "Nama minimal 3 huruf";
-    const email = form.email.toLowerCase().trim();
-    if (!/\S+@\S+\.\S+/.test(email)) return "Email tidak valid";
+    if (!/\S+@\S+\.\S+/.test(form.email)) return "Email tidak valid";
     if (form.password.length < 6) return "Password minimal 6 karakter";
     if (!form.dob) return "Tanggal lahir wajib";
     if (!form.domisili) return "Pilih domisili";
@@ -83,11 +57,9 @@ const RegisterPortal = () => {
     try {
       const email = form.email.toLowerCase().trim();
 
-      // ✅ Buat akun Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, form.password);
       const uid = cred.user.uid;
 
-      // ✅ Generate Member ID & QR
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
@@ -113,16 +85,10 @@ const RegisterPortal = () => {
         meta: { qrValue, qrImage }
       };
 
-      // ✅ Simpan ke Firestore pakai UID
       await setDoc(doc(db, "users", uid), userDoc);
 
-      localStorage.setItem(
-        "eas_user_data",
-        JSON.stringify({ id: uid, ...userDoc.public })
-      );
+      localStorage.setItem("eas_user_data", JSON.stringify({ id: uid, ...userDoc.public }));
       localStorage.setItem("eas_verified", "false");
-
-      playSuccess();
 
       await new Promise((res) => setTimeout(res, 300));
       navigate("/access-portal", { replace: true });
@@ -147,13 +113,11 @@ const RegisterPortal = () => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl"
       >
-        {/* HEADER */}
         <div className="text-center mb-6">
           <h2 className="text-xl font-black text-blue-400 tracking-widest">EAS REGISTER</h2>
           <p className="text-xs text-gray-500">Secure Digital Identity System</p>
         </div>
 
-        {/* GEN SELECTOR */}
         <div className="grid grid-cols-2 gap-2 mb-6">
           {[1, 2].map((g) => (
             <motion.button
@@ -161,7 +125,7 @@ const RegisterPortal = () => {
               type="button"
               whileTap={{ scale: 0.9 }}
               whileHover={{ scale: 1.05 }}
-              onClick={() => { playClick(); setGen(g); }}
+              onClick={() => setGen(g)}
               className={`p-3 rounded-xl text-xs font-bold transition
                 ${gen === g
                   ? "bg-blue-600 text-white shadow-lg"
@@ -174,30 +138,10 @@ const RegisterPortal = () => {
 
         <form onSubmit={handleRegister} className="space-y-3">
 
-          <InputIcon
-            icon={<User size={14} />}
-            placeholder="Nama lengkap"
-            value={form.nama}
-            onChange={(v) => setForm({ ...form, nama: v })}
-          />
+          <Input placeholder="Nama lengkap" value={form.nama} onChange={(v) => setForm({ ...form, nama: v })} />
+          <Input placeholder="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+          <Input placeholder="Password (min 6 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
 
-          <InputIcon
-            icon={<Mail size={14} />}
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={(v) => setForm({ ...form, email: v })}
-          />
-
-          <InputIcon
-            icon={<Lock size={14} />}
-            placeholder="Password (min 6 karakter)"
-            type="password"
-            value={form.password}
-            onChange={(v) => setForm({ ...form, password: v })}
-          />
-
-          {/* DATE OF BIRTH */}
           <input
             type="date"
             value={form.dob}
@@ -211,26 +155,16 @@ const RegisterPortal = () => {
             </p>
           )}
 
-          {/* DOMISILI */}
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-            <select
-              value={form.domisili}
-              onChange={(e) => setForm({ ...form, domisili: e.target.value })}
-              className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none text-gray-300"
-            >
-              <option value="">Pilih Provinsi</option>
-              {DOMISILI.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
+          <select
+            value={form.domisili}
+            onChange={(e) => setForm({ ...form, domisili: e.target.value })}
+            className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none text-gray-300"
+          >
+            <option value="">Pilih Provinsi</option>
+            {DOMISILI.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
 
-          {/* TIKTOK */}
-          <InputIcon
-            icon={<Video size={14} />}
-            placeholder="Link TikTok (tiktok.com/@...)"
-            value={form.tiktok}
-            onChange={(v) => setForm({ ...form, tiktok: v })}
-          />
+          <Input placeholder="Link TikTok (tiktok.com/@...)" value={form.tiktok} onChange={(v) => setForm({ ...form, tiktok: v })} />
 
           <motion.button
             type="submit"
@@ -246,7 +180,7 @@ const RegisterPortal = () => {
 
         <button
           type="button"
-          onClick={() => { playClick(); navigate("/login"); }}
+          onClick={() => navigate("/login")}
           className="w-full mt-4 text-xs text-blue-400 hover:underline"
         >
           Sudah punya akun? Login →
@@ -257,19 +191,14 @@ const RegisterPortal = () => {
   );
 };
 
-const InputIcon = ({ icon, placeholder, value, onChange, type = "text" }) => (
-  <div className="relative">
-    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-      {icon}
-    </div>
-    <input
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full pl-9 p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-300 placeholder-gray-600"
-    />
-  </div>
+const Input = ({ placeholder, value, onChange, type = "text" }) => (
+  <input
+    type={type}
+    value={value}
+    placeholder={placeholder}
+    onChange={(e) => onChange(e.target.value)}
+    className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-300 placeholder-gray-600"
+  />
 );
 
 export default RegisterPortal;
