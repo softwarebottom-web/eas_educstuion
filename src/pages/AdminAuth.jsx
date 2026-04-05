@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { ShieldAlert, Mail, Lock, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../api/config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { db, auth } from "../api/config";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 const AdminAuth = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1); // 1 = input gmail, 2 = input admin code
+  const [step, setStep] = useState(1); // 1=email+pass, 2=admin code
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [adminCode, setAdminCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [foundDoc, setFoundDoc] = useState(null); // simpan doc sementara
+  const [foundDoc, setFoundDoc] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       setStep(1);
       setEmail("");
+      setPassword("");
       setAdminCode("");
       setFoundDoc(null);
     }
@@ -24,41 +27,37 @@ const AdminAuth = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // ✅ STEP 1 — Cek Gmail & Role
-  const handleCheckEmail = async (e) => {
+  // ✅ STEP 1 — Login Firebase Auth + cek role
+  const handleCheckLogin = async (e) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
 
     try {
-      const q = query(
-        collection(db, "users"),
-        where("private.email", "==", email.toLowerCase().trim())
+      // Login Firebase Auth dulu biar request.auth tidak null
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        email.toLowerCase().trim(),
+        password
       );
 
-      const snapshot = await getDocs(q);
+      const uid = cred.user.uid;
 
-      if (snapshot.empty) {
-        alert("DENIED: Email tidak terdaftar");
+      // Ambil doc by UID langsung (tidak perlu query)
+      const snap = await getDoc(doc(db, "users", uid));
+
+      if (!snap.exists()) {
+        alert("DENIED: User tidak terdaftar");
         return;
       }
 
-      const docSnap = snapshot.docs[0];
-      const data = docSnap.data();
-
+      const data = snap.data();
       const role = data?.public?.role;
       const banned = data?.system?.banned;
       const verified = data?.system?.verified;
 
-      if (banned) {
-        alert("DENIED: Akun dibanned");
-        return;
-      }
-
-      if (!verified) {
-        alert("DENIED: Akun belum diverifikasi");
-        return;
-      }
+      if (banned) { alert("DENIED: Akun dibanned"); return; }
+      if (!verified) { alert("DENIED: Akun belum diverifikasi"); return; }
 
       const allowedRoles = ["owner", "admin", "moderator"];
       if (!allowedRoles.includes(role)) {
@@ -66,13 +65,18 @@ const AdminAuth = ({ isOpen, onClose }) => {
         return;
       }
 
-      // ✅ Simpan doc, lanjut ke step 2
-      setFoundDoc({ id: docSnap.id, data });
+      setFoundDoc({ id: uid, data });
       setStep(2);
 
     } catch (err) {
       console.error(err);
-      alert("Error: " + err.message);
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        alert("DENIED: Password salah");
+      } else if (err.code === "auth/user-not-found") {
+        alert("DENIED: Email tidak terdaftar");
+      } else {
+        alert("Error: " + err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -103,7 +107,7 @@ const AdminAuth = ({ isOpen, onClose }) => {
       if (role === "admin") level = 2;
       if (role === "owner") level = 3;
 
-      const expireTime = Date.now() + 1000 * 60 * 60; // 1 jam
+      const expireTime = Date.now() + 1000 * 60 * 60;
 
       localStorage.setItem("eas_admin_token", "EAS_ADMIN_SESSION");
       localStorage.setItem("eas_admin_id", foundDoc.id);
@@ -128,17 +132,14 @@ const AdminAuth = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative w-full max-w-sm p-10 rounded-[2.5rem] bg-white/5 backdrop-blur-xl border border-red-500/20 text-center z-10">
 
-        {/* ICON */}
         <div className="bg-red-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShieldAlert className="text-red-500 animate-pulse" size={28} />
         </div>
 
-        {/* TITLE */}
         <h1 className="text-sm font-black tracking-widest text-red-400 mb-1">
           ADMIN ACCESS
         </h1>
@@ -149,11 +150,11 @@ const AdminAuth = ({ isOpen, onClose }) => {
           <div className={`w-8 h-1 rounded-full transition-all ${step >= 2 ? "bg-red-500" : "bg-gray-700"}`} />
         </div>
 
-        {/* STEP 1 — EMAIL */}
+        {/* STEP 1 — EMAIL + PASSWORD */}
         {step === 1 && (
-          <form onSubmit={handleCheckEmail} className="space-y-4">
+          <form onSubmit={handleCheckLogin} className="space-y-3">
             <p className="text-[10px] text-gray-500 mb-4">
-              Masukkan Gmail yang terdaftar sebagai staff
+              Login dengan akun staff kamu
             </p>
 
             <div className="relative">
@@ -163,6 +164,18 @@ const AdminAuth = ({ isOpen, onClose }) => {
                 placeholder="Gmail staff"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-black/40 border border-red-500/20 p-4 pl-12 rounded-2xl text-center text-xs text-red-400 focus:outline-none focus:border-red-500"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-red-400/40" size={14} />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-black/40 border border-red-500/20 p-4 pl-12 rounded-2xl text-center text-xs text-red-400 focus:outline-none focus:border-red-500"
                 required
               />
@@ -210,13 +223,12 @@ const AdminAuth = ({ isOpen, onClose }) => {
               {loading ? "AUTHORIZING..." : "ENTER SYSTEM"}
             </button>
 
-            {/* Back */}
             <button
               type="button"
               onClick={() => { setStep(1); setFoundDoc(null); }}
               className="text-[9px] text-gray-600 hover:text-gray-400"
             >
-              ← Ganti email
+              ← Ganti akun
             </button>
           </form>
         )}
