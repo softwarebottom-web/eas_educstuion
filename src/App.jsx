@@ -3,11 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./api/config";
 
-// Components & Pages
 import Intro from "./component/Intro";
 import Navbar from "./component/Navbar";
 import RegisterPortal from "./pages/RegisterPortal";
-import LoginPortal from "./pages/LoginPortal"; // 🔥 TAMBAHAN
+import LoginPortal from "./pages/LoginPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
 import Library from "./pages/Libary";
@@ -15,11 +14,6 @@ import Quiz from "./pages/Quiz";
 import About from "./pages/About";
 import AdminPanel from "./pages/AdminPanel";
 
-// Staff Data
-import { EAS_STAFF_LIST } from "./api/staff";
-
-
-// --- 🛡️ PROTECTED ROUTE ---
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const [user, loading] = useAuthState(auth);
   const localUser = JSON.parse(localStorage.getItem("eas_user_data") || "null");
@@ -36,30 +30,39 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  // 🔥 BELUM LOGIN
+  // 🔒 BELUM LOGIN
   if (!user && !localUser) {
     return <Navigate to="/register" state={{ from: location }} replace />;
   }
 
-  // 🔥 BELUM VERIFIKASI → WAJIB KE ACCESS PORTAL
+  // 🔒 BELUM VERIFIKASI → ke Access Portal
   if (!isVerified && location.pathname !== "/access-portal") {
     return <Navigate to="/access-portal" replace />;
   }
 
-  // 🔥 ADMIN CHECK
+  // 🔒 ADMIN CHECK — pakai token & role dari localStorage (hasil AdminAuth)
   if (adminOnly) {
-    const staff = EAS_STAFF_LIST[localUser?.nama?.toLowerCase()];
-    if (!staff || staff.level < 1) {
-      alert("AKSES DITOLAK: Area khusus Petinggi!");
-      return <Navigate to="/" replace />;
+    const token = localStorage.getItem("eas_admin_token");
+    const adminRole = localStorage.getItem("eas_admin_role");
+    const expire = localStorage.getItem("eas_admin_expire");
+
+    const allowedRoles = ["owner", "admin", "moderator"];
+    const isValid =
+      token === "EAS_ADMIN_SESSION" &&
+      adminRole &&
+      allowedRoles.includes(adminRole) &&
+      expire &&
+      Date.now() < Number(expire);
+
+    if (!isValid) {
+      // Tidak redirect alert, biarkan AdminPanel yang handle auth
+      return <AdminPanel />;
     }
   }
 
   return children;
 };
 
-
-// --- 🚀 MAIN APP ---
 function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [user] = useAuthState(auth);
@@ -79,17 +82,14 @@ function App() {
     <Router>
       <div className="min-h-screen bg-[#00050d] text-white selection:bg-blue-500">
 
-        {/* 🔥 INTRO */}
         {showIntro && <Intro onFinish={handleIntroFinish} />}
 
         <div className={showIntro ? "hidden" : "block pb-24"}>
           <Routes>
 
-            {/* 🔥 AUTH SYSTEM */}
             <Route path="/register" element={<RegisterPortal />} />
-            <Route path="/login" element={<LoginPortal />} /> {/* 🔥 LOGIN BARU */}
+            <Route path="/login" element={<LoginPortal />} />
 
-            {/* 🔥 ACCESS PORTAL */}
             <Route
               path="/access-portal"
               element={
@@ -99,7 +99,6 @@ function App() {
               }
             />
 
-            {/* 🔥 MAIN APP */}
             <Route
               path="/"
               element={
@@ -136,22 +135,13 @@ function App() {
               }
             />
 
-            {/* 🔥 ADMIN */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute adminOnly={true}>
-                  <AdminPanel />
-                </ProtectedRoute>
-              }
-            />
+            {/* ✅ Admin — tidak pakai ProtectedRoute adminOnly, langsung AdminPanel */}
+            <Route path="/admin" element={<AdminPanel />} />
 
-            {/* 🔥 FALLBACK */}
             <Route path="*" element={<Navigate to="/" replace />} />
 
           </Routes>
 
-          {/* 🔥 NAVBAR */}
           {(user || localUser) && !showIntro && <Navbar />}
         </div>
       </div>
