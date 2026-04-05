@@ -138,9 +138,25 @@ const RegisterPortal = () => {
 
         <form onSubmit={handleRegister} className="space-y-3">
 
-          <Input placeholder="Nama lengkap" value={form.nama} onChange={(v) => setForm({ ...form, nama: v })} />
-          <Input placeholder="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          <Input placeholder="Password (min 6 karakter)" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
+          <Input
+            placeholder="Nama lengkap"
+            value={form.nama}
+            onChange={(v) => setForm({ ...form, nama: v })}
+          />
+
+          <Input
+            placeholder="Email"
+            type="email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+          />
+
+          <Input
+            placeholder="Password (min 6 karakter)"
+            type="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
+          />
 
           <input
             type="date"
@@ -164,7 +180,11 @@ const RegisterPortal = () => {
             {DOMISILI.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
 
-          <Input placeholder="Link TikTok (tiktok.com/@...)" value={form.tiktok} onChange={(v) => setForm({ ...form, tiktok: v })} />
+          <Input
+            placeholder="Link TikTok (tiktok.com/@...)"
+            value={form.tiktok}
+            onChange={(v) => setForm({ ...form, tiktok: v })}
+          />
 
           <motion.button
             type="submit"
