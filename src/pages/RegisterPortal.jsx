@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, supabaseMedia, auth } from "../api/config";
 import { doc, setDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, deleteUser } from "firebase/auth";
 import { UploadCloud, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
@@ -22,36 +22,36 @@ const RegisterPortal = () => {
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState("");
 
   const [form, setForm] = useState({
-    nama: "",
-    email: "",
-    password: "",
-    dob: "",
-    domisili: "",
-    tiktok: ""
+    nama: "", email: "", password: "", dob: "", domisili: "", tiktok: ""
   });
 
   const navigate = useNavigate();
 
   const playClick = () => {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.value = 600;
-    osc.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => osc.stop(), 50);
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = 600;
+      osc.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => osc.stop(), 50);
+    } catch (_) {}
   };
 
   const playSuccess = () => {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 900;
-    osc.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => osc.stop(), 120);
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 900;
+      osc.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => osc.stop(), 120);
+    } catch (_) {}
   };
 
   useEffect(() => {
@@ -90,6 +90,32 @@ const RegisterPortal = () => {
     setPreview(URL.createObjectURL(file));
   };
 
+  // ✅ Upload foto dulu SEBELUM buat akun
+  const uploadPhoto = async () => {
+    const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+
+    setUploadProgress("Mengupload foto...");
+
+    const { error } = await supabaseMedia.storage
+      .from("eas-idcard")
+      .upload(fileName, photo, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: photo.type
+      });
+
+    if (error) {
+      console.error("Supabase upload error:", error);
+      throw new Error("Upload foto gagal: " + error.message);
+    }
+
+    const { data } = supabaseMedia.storage
+      .from("eas-idcard")
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -98,26 +124,24 @@ const RegisterPortal = () => {
     if (errorMsg) return alert(errorMsg);
 
     setLoading(true);
+    setUploadProgress("");
+
+    let firebaseUser = null;
 
     try {
       const email = form.email.toLowerCase().trim();
 
-      // ✅ Buat akun Firebase Auth, ambil UID
+      // ✅ STEP 1: Upload foto DULU sebelum buat akun
+      const photoUrl = await uploadPhoto();
+
+      // ✅ STEP 2: Baru buat akun Firebase Auth
+      setUploadProgress("Membuat akun...");
       const cred = await createUserWithEmailAndPassword(auth, email, form.password);
+      firebaseUser = cred.user;
       const uid = cred.user.uid;
 
-      // ✅ Upload foto
-      const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-      const { error } = await supabaseMedia.storage
-        .from("eas-idcard")
-        .upload(fileName, photo);
-      if (error) throw error;
-
-      const { data } = supabaseMedia.storage
-        .from("eas-idcard")
-        .getPublicUrl(fileName);
-
-      // ✅ Generate ID & QR
+      // ✅ STEP 3: Generate data
+      setUploadProgress("Menyimpan data...");
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
@@ -130,7 +154,7 @@ const RegisterPortal = () => {
           dob: form.dob,
           domisili: form.domisili,
           tiktok: form.tiktok,
-          photo: data.publicUrl,
+          photo: photoUrl,
           memberId,
           gen,
           role: "member"
@@ -144,7 +168,7 @@ const RegisterPortal = () => {
         meta: { qrValue, qrImage }
       };
 
-      // ✅ Simpan ke Firestore pakai UID sebagai doc ID
+      // ✅ STEP 4: Simpan ke Firestore
       await setDoc(doc(db, "users", uid), userDoc);
 
       localStorage.setItem(
@@ -154,12 +178,24 @@ const RegisterPortal = () => {
       localStorage.setItem("eas_verified", "false");
 
       playSuccess();
+      setUploadProgress("Berhasil! Mengalihkan...");
 
       await new Promise((res) => setTimeout(res, 300));
       navigate("/access-portal", { replace: true });
 
     } catch (err) {
-      console.error(err);
+      console.error("Register error:", err);
+
+      // 🔥 Rollback: hapus akun Firebase kalau Firestore gagal
+      if (firebaseUser) {
+        try {
+          await deleteUser(firebaseUser);
+          console.log("Rolled back Firebase user");
+        } catch (rollbackErr) {
+          console.error("Rollback failed:", rollbackErr);
+        }
+      }
+
       if (err.code === "auth/email-already-in-use") {
         alert("Email sudah terdaftar, silakan login");
       } else {
@@ -167,6 +203,7 @@ const RegisterPortal = () => {
       }
     } finally {
       setLoading(false);
+      setUploadProgress("");
     }
   };
 
@@ -255,6 +292,13 @@ const RegisterPortal = () => {
 
           <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v) => setForm({ ...form, tiktok: v })} />
 
+          {/* ✅ Progress indicator */}
+          {uploadProgress && (
+            <p className="text-xs text-blue-400 text-center animate-pulse">
+              ⏳ {uploadProgress}
+            </p>
+          )}
+
           <motion.button
             type="submit"
             whileTap={{ scale: 0.95 }}
@@ -262,7 +306,7 @@ const RegisterPortal = () => {
             disabled={loading}
             className="w-full p-4 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg transition disabled:bg-gray-700"
           >
-            {loading ? "Processing..." : "Register"}
+            {loading ? uploadProgress || "Processing..." : "Register"}
           </motion.button>
         </form>
 
