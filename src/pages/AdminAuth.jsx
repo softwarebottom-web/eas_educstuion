@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { ShieldAlert, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { STAFF_LIST } from "../api/staff";
+import { db } from "../api/config";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 const AdminAuth = ({ isOpen, onClose, userData }) => {
   const navigate = useNavigate();
@@ -22,39 +23,80 @@ const AdminAuth = ({ isOpen, onClose, userData }) => {
 
     try {
       const masterKey = import.meta.env.VITE_ADMIN_MASTER_KEY;
-      const currentName = userData?.nama?.toLowerCase();
+      const currentName = userData?.nama;
 
-      // 🔥 VALIDASI KE STAFF.JS (BUKAN ENV DOANG)
-      const staff = STAFF_LIST.find(
-        (s) => s.nickname.toLowerCase() === currentName
+      if (!currentName) {
+        alert("User tidak valid");
+        return;
+      }
+
+      // 🔥 QUERY KE FIRESTORE (SOURCE OF TRUTH)
+      const q = query(
+        collection(db, "users"),
+        where("public.nama", "==", currentName)
       );
 
-      if (!staff) {
-        alert("DENIED: Anda bukan staff terdaftar!");
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert("DENIED: User tidak terdaftar");
         return;
       }
 
+      const docSnap = snapshot.docs[0];
+      const data = docSnap.data();
+
+      const role = data?.public?.role;
+      const banned = data?.system?.banned;
+      const verified = data?.system?.verified;
+
+      // 🔐 VALIDASI SYSTEM
+      if (banned) {
+        alert("DENIED: Akun dibanned");
+        return;
+      }
+
+      if (!verified) {
+        alert("DENIED: Akun belum diverifikasi");
+        return;
+      }
+
+      // 🔥 ROLE CHECK (HANYA PETINGGI)
+      const allowedRoles = ["owner", "admin", "moderator"];
+
+      if (!allowedRoles.includes(role)) {
+        alert("DENIED: Anda bukan staff");
+        return;
+      }
+
+      // 🔐 MASTER KEY
       if (passkey !== masterKey) {
-        alert("DENIED: Master key salah!");
+        alert("DENIED: Key salah");
         return;
       }
 
-      // 🔐 GENERATE SESSION
-      const expireTime = Date.now() + 1000 * 60 * 60; // 1 jam
+      // 🔥 LEVEL SYSTEM
+      let level = 1;
+      if (role === "admin") level = 2;
+      if (role === "owner") level = 3;
 
+      const expireTime = Date.now() + 1000 * 60 * 60;
+
+      // 🔥 SESSION
       localStorage.setItem("eas_admin_token", "EAS_ADMIN_SESSION");
-      localStorage.setItem("eas_active_staff", staff.nickname);
-      localStorage.setItem("eas_admin_role", staff.role);
+      localStorage.setItem("eas_admin_id", docSnap.id);
+      localStorage.setItem("eas_admin_role", role);
+      localStorage.setItem("eas_admin_level", level.toString());
       localStorage.setItem("eas_admin_expire", expireTime.toString());
 
-      alert(`ACCESS GRANTED: ${staff.nickname} (${staff.role})`);
+      alert(`ACCESS GRANTED: ${role.toUpperCase()}`);
 
       onClose();
       navigate("/admin", { replace: true });
 
     } catch (err) {
       console.error(err);
-      alert("Terjadi error saat autentikasi");
+      alert("Auth error");
     } finally {
       setLoading(false);
     }
@@ -63,73 +105,55 @@ const AdminAuth = ({ isOpen, onClose, userData }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
 
-      {/* BACKDROP */}
       <div className="absolute inset-0" onClick={onClose}></div>
 
-      {/* MODAL */}
-      <div className="relative w-full max-w-sm p-10 border border-red-900/30 rounded-[2.5rem] bg-black/90 text-center shadow-[0_0_60px_rgba(153,27,27,0.2)] z-10">
+      <div className="relative w-full max-w-sm p-10 rounded-[2.5rem] bg-white/5 backdrop-blur-xl border border-red-500/20 text-center z-10">
 
-        <div className="bg-red-950/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+        <div className="bg-red-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShieldAlert className="text-red-500 animate-pulse" size={28} />
         </div>
 
-        <h1 className="text-sm font-black tracking-[0.4em] text-red-500 uppercase mb-2 italic">
-          Admin Gateway
+        <h1 className="text-sm font-black tracking-widest text-red-400 mb-2">
+          ADMIN ACCESS
         </h1>
 
-        <p className="text-[9px] text-gray-500 uppercase mb-8 tracking-widest leading-relaxed">
-          Log:{" "}
-          <span className="text-gray-300 font-black">
-            {userData?.nama || "Unknown"}
-          </span>
-          <br />
-          Authorization Required
+        <p className="text-[10px] text-gray-500 mb-6">
+          {userData?.nama || "Unknown"} • Secure Auth
         </p>
 
         <form onSubmit={handleAdminAuth} className="space-y-4">
-
-          {/* INPUT */}
           <div className="relative">
-            <Lock
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-red-900"
-              size={14}
-            />
-
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-red-400/40" size={14} />
             <input
               type="password"
-              placeholder="ENTER MASTER KEY"
+              placeholder="MASTER KEY"
               value={passkey}
               onChange={(e) => setPasskey(e.target.value)}
-              className="w-full bg-red-950/5 border border-red-900/30 p-4 pl-12 rounded-2xl text-center text-[10px] text-red-500 placeholder:text-red-900/50 focus:outline-none focus:border-red-500/50 transition-all font-black tracking-[0.3em]"
+              className="w-full bg-black/40 border border-red-500/20 p-4 pl-12 rounded-2xl text-center text-xs text-red-400 focus:outline-none focus:border-red-500"
               required
             />
           </div>
 
-          {/* BUTTON */}
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all
+            className={`w-full py-4 rounded-2xl text-xs font-black uppercase transition-all
               ${loading
                 ? "bg-red-900/20 text-red-700"
-                : "bg-red-600/10 border border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white"}
+                : "bg-red-600 hover:bg-red-700 text-white"}
             `}
           >
-            {loading ? "AUTHORIZING..." : "Authorize Access"}
+            {loading ? "AUTHORIZING..." : "ENTER SYSTEM"}
           </button>
         </form>
 
-        {/* CANCEL */}
         <button
           onClick={onClose}
-          className="mt-6 text-[8px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
+          className="mt-6 text-[9px] text-gray-500 hover:text-gray-300"
         >
           Cancel
         </button>
 
-        <p className="mt-6 text-[7px] text-red-900 font-bold uppercase tracking-[0.5em]">
-          EAS Security Layer
-        </p>
       </div>
     </div>
   );
