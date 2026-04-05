@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../api/config";
+import { db, auth } from "../api/config";
 import { doc, getDoc } from "firebase/firestore";
-import {
-  Lock,
-  Search,
-  MessageCircle,
-  ArrowLeft,
-  ShieldCheck
-} from "lucide-react";
-
+import { signOut } from "firebase/auth";
+import { Lock, Search, MessageCircle, ArrowLeft, ShieldCheck } from "lucide-react";
 import IDCard from "../component/IDCard";
 
 const WHATSAPP_LINKS = {
@@ -24,11 +18,11 @@ const AccessPortal = () => {
   const [userData, setUserData] = useState(null);
   const [ready, setReady] = useState(false);
 
-  // 🔐 LOAD USER FROM DATABASE
   useEffect(() => {
     const init = async () => {
       try {
-        const saved = localStorage.getItem("eas_user_session");
+        // ✅ Pakai key yang sama dengan Register
+        const saved = localStorage.getItem("eas_user_data");
 
         if (!saved) {
           navigate("/login");
@@ -42,37 +36,31 @@ const AccessPortal = () => {
           return;
         }
 
-        // 🔥 FETCH REAL DATA FROM FIRESTORE
-        const docRef = doc(db, "users", session.id);
-        const snap = await getDoc(docRef);
+        // ✅ Fetch data dari Firestore
+        const snap = await getDoc(doc(db, "users", session.id));
 
         if (!snap.exists()) {
-          localStorage.removeItem("eas_user_session");
+          localStorage.removeItem("eas_user_data");
+          localStorage.removeItem("eas_verified");
           navigate("/register");
           return;
         }
 
         const data = snap.data();
 
-        // 🔥 VALIDASI KERAS
-        if (
-          !data?.public?.memberId ||
-          !data?.private?.signature
-        ) {
+        // ✅ Validasi field yang memang ada (tanpa signature)
+        if (!data?.public?.memberId) {
           alert("DATA INVALID");
           navigate("/register");
           return;
         }
 
-        // 🔥 COMBINE DATA
         const fullData = {
           id: snap.id,
-          ...data.public,
-          signature: data.private.signature
+          ...data.public
         };
 
         setUserData(fullData);
-
         setTimeout(() => setReady(true), 300);
 
       } catch (err) {
@@ -84,18 +72,14 @@ const AccessPortal = () => {
     init();
   }, [navigate]);
 
-  // 🔐 VERIFY SESSION (SIMULASI SERVER CHECK)
   const handleActivate = async () => {
     if (checking || !userData) return;
-
     setChecking(true);
 
     try {
-      // 🔥 OPTIONAL: VALIDASI KE SERVER / CLOUD FUNCTION
       await new Promise((res) => setTimeout(res, 1200));
 
       localStorage.setItem("eas_verified", "true");
-
       navigate("/dashboard", { replace: true });
 
     } catch (err) {
@@ -105,13 +89,15 @@ const AccessPortal = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("eas_user_session");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (_) {}
+    localStorage.removeItem("eas_user_data");
     localStorage.removeItem("eas_verified");
     navigate("/login");
   };
 
-  // 🎨 THEME
   const theme =
     userData?.gen === 1
       ? {
@@ -138,7 +124,6 @@ const AccessPortal = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#00050d] p-6 gap-8 relative overflow-hidden">
 
-      {/* GRID BG */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
         style={{
@@ -147,7 +132,6 @@ const AccessPortal = () => {
         }}
       />
 
-      {/* LOGOUT */}
       <button
         onClick={handleLogout}
         className="absolute top-8 left-8 text-[9px] uppercase text-gray-500 flex items-center gap-2 hover:text-red-400"
@@ -155,13 +139,10 @@ const AccessPortal = () => {
         <ArrowLeft size={12} /> Logout
       </button>
 
-      {/* MAIN */}
       <div className="flex flex-col items-center gap-6 w-full max-w-sm z-10">
 
-        {/* 🔥 REAL ID CARD */}
         <IDCard data={userData} gen={userData.gen} />
 
-        {/* WHATSAPP */}
         <a
           href={WHATSAPP_LINKS[userData.gen]}
           target="_blank"
@@ -172,7 +153,6 @@ const AccessPortal = () => {
         </a>
       </div>
 
-      {/* SECURITY */}
       <div className={`w-full max-w-xs p-8 border rounded-[2.5rem] bg-black/60 text-center ${theme.border} ${theme.glow}`}>
 
         <div className="mb-4">
@@ -193,16 +173,14 @@ const AccessPortal = () => {
           onClick={handleActivate}
           disabled={checking}
           className={`w-full py-4 rounded-xl font-black text-[10px] uppercase
-          ${checking ? "bg-gray-800" : theme.button}`}
+            ${checking ? "bg-gray-800" : theme.button}`}
         >
           {checking ? "Validating..." : "Activate Access"}
         </button>
 
         <div className="mt-6 flex items-center justify-center gap-2 opacity-30">
           <ShieldCheck size={12} />
-          <span className="text-[7px] uppercase">
-            EAS Secure Layer
-          </span>
+          <span className="text-[7px] uppercase">EAS Secure Layer</span>
         </div>
       </div>
 
