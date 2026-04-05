@@ -5,10 +5,10 @@ import { db, auth } from "../api/config";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
-const AdminAuth = ({ isOpen, onClose }) => {
+const AdminAuth = ({ isOpen, onClose, onAuthSuccess }) => {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1); // 1=email+pass, 2=admin code
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [adminCode, setAdminCode] = useState("");
@@ -27,14 +27,12 @@ const AdminAuth = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // ✅ STEP 1 — Login Firebase Auth + cek role
   const handleCheckLogin = async (e) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
 
     try {
-      // Login Firebase Auth dulu biar request.auth tidak null
       const cred = await signInWithEmailAndPassword(
         auth,
         email.toLowerCase().trim(),
@@ -42,8 +40,6 @@ const AdminAuth = ({ isOpen, onClose }) => {
       );
 
       const uid = cred.user.uid;
-
-      // Ambil doc by UID langsung (tidak perlu query)
       const snap = await getDoc(doc(db, "users", uid));
 
       if (!snap.exists()) {
@@ -82,7 +78,6 @@ const AdminAuth = ({ isOpen, onClose }) => {
     }
   };
 
-  // ✅ STEP 2 — Cek Admin Code
   const handleCheckCode = async (e) => {
     e.preventDefault();
     if (loading || !foundDoc) return;
@@ -116,6 +111,9 @@ const AdminAuth = ({ isOpen, onClose }) => {
       localStorage.setItem("eas_admin_expire", expireTime.toString());
 
       alert(`ACCESS GRANTED: ${role.toUpperCase()}`);
+
+      // ✅ Panggil onAuthSuccess dulu, baru navigate
+      if (onAuthSuccess) onAuthSuccess();
       onClose();
       navigate("/admin", { replace: true });
 
@@ -144,13 +142,11 @@ const AdminAuth = ({ isOpen, onClose }) => {
           ADMIN ACCESS
         </h1>
 
-        {/* STEP INDICATOR */}
         <div className="flex justify-center gap-2 mb-6">
           <div className={`w-8 h-1 rounded-full transition-all ${step >= 1 ? "bg-red-500" : "bg-gray-700"}`} />
           <div className={`w-8 h-1 rounded-full transition-all ${step >= 2 ? "bg-red-500" : "bg-gray-700"}`} />
         </div>
 
-        {/* STEP 1 — EMAIL + PASSWORD */}
         {step === 1 && (
           <form onSubmit={handleCheckLogin} className="space-y-3">
             <p className="text-[10px] text-gray-500 mb-4">
@@ -192,7 +188,6 @@ const AdminAuth = ({ isOpen, onClose }) => {
           </form>
         )}
 
-        {/* STEP 2 — ADMIN CODE */}
         {step === 2 && (
           <form onSubmit={handleCheckCode} className="space-y-4">
             <p className="text-[10px] text-gray-500 mb-1">
