@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, supabaseMedia, auth } from "../api/config";
-import { collection, addDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { UploadCloud, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -70,20 +70,13 @@ const RegisterPortal = () => {
   const validate = () => {
     if (!photo) return "Upload foto dulu";
     if (form.nama.trim().length < 3) return "Nama minimal 3 huruf";
-
     const email = form.email.toLowerCase().trim();
     if (!/\S+@\S+\.\S+/.test(email)) return "Email tidak valid";
-
     if (form.password.length < 6) return "Password minimal 6 karakter";
-
     if (!form.dob) return "Tanggal lahir wajib";
     if (!form.domisili) return "Pilih domisili";
-
-    if (!form.tiktok.toLowerCase().includes("tiktok"))
-      return "Link TikTok tidak valid";
-
+    if (!form.tiktok.toLowerCase().includes("tiktok")) return "Link TikTok tidak valid";
     if (getAge(form.dob) < 10) return "Minimal umur 10 tahun";
-
     return null;
   };
 
@@ -109,24 +102,25 @@ const RegisterPortal = () => {
     try {
       const email = form.email.toLowerCase().trim();
 
-      await createUserWithEmailAndPassword(auth, email, form.password);
+      // ✅ Buat akun Firebase Auth, ambil UID
+      const cred = await createUserWithEmailAndPassword(auth, email, form.password);
+      const uid = cred.user.uid;
 
+      // ✅ Upload foto
       const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-
       const { error } = await supabaseMedia.storage
         .from("eas-idcard")
         .upload(fileName, photo);
-
       if (error) throw error;
 
       const { data } = supabaseMedia.storage
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
+      // ✅ Generate ID & QR
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
-
       const umur = getAge(form.dob);
 
       const userDoc = {
@@ -150,18 +144,18 @@ const RegisterPortal = () => {
         meta: { qrValue, qrImage }
       };
 
-      const ref = await addDoc(collection(db, "users"), userDoc);
+      // ✅ Simpan ke Firestore pakai UID sebagai doc ID
+      await setDoc(doc(db, "users", uid), userDoc);
 
       localStorage.setItem(
         "eas_user_data",
-        JSON.stringify({ id: ref.id, ...userDoc.public })
+        JSON.stringify({ id: uid, ...userDoc.public })
       );
       localStorage.setItem("eas_verified", "false");
 
       playSuccess();
 
       await new Promise((res) => setTimeout(res, 300));
-
       navigate("/access-portal", { replace: true });
 
     } catch (err) {
@@ -178,23 +172,17 @@ const RegisterPortal = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#020617] via-black to-[#020617] flex items-center justify-center p-6 text-white">
-
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4 }}
         className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl"
       >
-
-        {/* HEADER */}
         <div className="text-center mb-6">
-          <h2 className="text-xl font-black text-blue-400 tracking-widest">
-            EAS REGISTER
-          </h2>
+          <h2 className="text-xl font-black text-blue-400 tracking-widest">EAS REGISTER</h2>
           <p className="text-xs text-gray-500">Secure Digital Identity System</p>
         </div>
 
-        {/* GEN */}
         <div className="grid grid-cols-2 gap-2 mb-6">
           {[1, 2].map((g) => (
             <motion.button
@@ -214,8 +202,6 @@ const RegisterPortal = () => {
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
-
-          {/* FOTO */}
           <label className="flex justify-center cursor-pointer group">
             {preview ? (
               <motion.img
@@ -231,19 +217,9 @@ const RegisterPortal = () => {
             <input type="file" hidden onChange={handlePhoto} accept="image/*" />
           </label>
 
-          <Input
-            placeholder="Nama"
-            value={form.nama}
-            onChange={(v) => setForm({ ...form, nama: v })}
-          />
+          <Input placeholder="Nama" value={form.nama} onChange={(v) => setForm({ ...form, nama: v })} />
+          <Input placeholder="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
 
-          <Input
-            placeholder="Email"
-            value={form.email}
-            onChange={(v) => setForm({ ...form, email: v })}
-          />
-
-          {/* PASSWORD */}
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
             <input
@@ -274,16 +250,10 @@ const RegisterPortal = () => {
             className="w-full p-3 bg-black/40 border border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="">Pilih Provinsi</option>
-            {DOMISILI.map((d) => (
-              <option key={d}>{d}</option>
-            ))}
+            {DOMISILI.map((d) => <option key={d}>{d}</option>)}
           </select>
 
-          <Input
-            placeholder="Link TikTok"
-            value={form.tiktok}
-            onChange={(v) => setForm({ ...form, tiktok: v })}
-          />
+          <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v) => setForm({ ...form, tiktok: v })} />
 
           <motion.button
             type="submit"
@@ -294,7 +264,6 @@ const RegisterPortal = () => {
           >
             {loading ? "Processing..." : "Register"}
           </motion.button>
-
         </form>
 
         <button
@@ -304,15 +273,13 @@ const RegisterPortal = () => {
         >
           Sudah punya akun? Login →
         </button>
-
       </motion.div>
     </div>
   );
 };
 
-const Input = ({ placeholder, value, onChange, type = "text" }) => (
+const Input = ({ placeholder, value, onChange }) => (
   <input
-    type={type}
     value={value}
     placeholder={placeholder}
     onChange={(e) => onChange(e.target.value)}
