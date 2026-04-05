@@ -7,9 +7,13 @@ import QRCode from "qrcode";
 import { motion } from "framer-motion";
 
 const DOMISILI = [
-  "Jakarta","Surabaya","Bandung","Medan","Makassar",
-  "Semarang","Yogyakarta","Palembang","Denpasar",
-  "Balikpapan","Malang","Bogor","Bekasi","Tangerang"
+  "Aceh","Sumatera Utara","Sumatera Barat","Riau","Jambi","Sumatera Selatan",
+  "Bengkulu","Lampung","Kepulauan Bangka Belitung","Kepulauan Riau",
+  "DKI Jakarta","Jawa Barat","Jawa Tengah","DI Yogyakarta","Jawa Timur","Banten",
+  "Bali","Nusa Tenggara Barat","Nusa Tenggara Timur",
+  "Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara",
+  "Sulawesi Utara","Sulawesi Tengah","Sulawesi Selatan","Sulawesi Tenggara","Gorontalo","Sulawesi Barat",
+  "Maluku","Maluku Utara","Papua","Papua Barat","Papua Selatan","Papua Tengah","Papua Pegunungan"
 ];
 
 const RegisterPortal = () => {
@@ -59,7 +63,7 @@ const RegisterPortal = () => {
     if (form.nama.trim().length < 3) return alert("Nama minimal 3 huruf");
     if (!form.email.includes("@")) return alert("Email tidak valid");
     if (!form.dob) return alert("Tanggal lahir wajib");
-    if (!form.domisili) return alert("Pilih domisili");
+    if (!DOMISILI.includes(form.domisili)) return alert("Pilih domisili valid");
     if (!form.tiktok.includes("tiktok")) return alert("Link TikTok tidak valid");
 
     const umur = getAge(form.dob);
@@ -68,7 +72,7 @@ const RegisterPortal = () => {
     setLoading(true);
 
     try {
-      // 🔥 Upload Photo
+      // 🔥 Upload Foto
       const fileName = `gen${gen}_${Date.now()}.jpg`;
 
       const { error } = await supabaseMedia.storage
@@ -81,18 +85,18 @@ const RegisterPortal = () => {
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
-      // 🔐 CORE ID SYSTEM
+      // 🔐 Generate ID + QR
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
-      const signature = crypto.randomUUID();
-
-      const qrValue = `EAS|${memberId}|${signature}`;
+      const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
 
       // 🔥 STRUCTURE DATA
       const userDoc = {
         public: {
           nama: form.nama,
+          email: form.email, // 🔥 kalau mau private, pindahin ke private
           umur,
+          dob: form.dob,
           domisili: form.domisili,
           tiktok: form.tiktok,
           photo: data.publicUrl,
@@ -100,18 +104,11 @@ const RegisterPortal = () => {
           gen,
           role: "member"
         },
-
-        private: {
-          email: form.email,
-          signature
-        },
-
         system: {
           createdAt: new Date().toISOString(),
           verified: false,
           banned: false
         },
-
         meta: {
           qrValue,
           qrImage
@@ -120,7 +117,7 @@ const RegisterPortal = () => {
 
       const ref = await addDoc(collection(db, "users"), userDoc);
 
-      // 🔐 LOCAL SAFE DATA
+      // 🔥 LOCAL SAFE DATA
       localStorage.setItem(
         "eas_user_data",
         JSON.stringify({
@@ -128,25 +125,6 @@ const RegisterPortal = () => {
           ...userDoc.public
         })
       );
-
-      // 📩 EMAIL QUEUE (TANPA PASSWORD)
-      await addDoc(collection(db, "mail_queue"), {
-        to: form.email,
-        message: {
-          subject: "EAS MEMBER ID",
-          text: `
-Halo ${form.nama},
-
-Akun kamu berhasil dibuat.
-
-Member ID: ${memberId}
-
-Gunakan ID ini untuk login atau scan QR.
-
-- EAS System
-          `
-        }
-      });
 
       alert("REGISTER BERHASIL 🚀");
       navigate("/access-portal");
@@ -177,8 +155,9 @@ Gunakan ID ini untuk login atau scan QR.
           {[1,2].map(g => (
             <button
               key={g}
+              type="button"
               onClick={() => setGen(g)}
-              className={`p-3 rounded-xl text-xs font-bold
+              className={`p-3 rounded-xl text-xs font-bold transition
               ${gen === g ? "bg-blue-600" : "bg-gray-900 text-gray-400"}`}
             >
               GEN {g}
@@ -200,48 +179,81 @@ Gunakan ID ini untuk login atau scan QR.
             <input type="file" hidden onChange={handlePhoto}/>
           </motion.label>
 
-          <Input icon={<User size={14}/>} placeholder="Nama" onChange={(v)=>setForm({...form,nama:v})}/>
-          <Input icon={<Mail size={14}/>} placeholder="Email" onChange={(v)=>setForm({...form,email:v})}/>
+          <Input icon={<User size={14}/>} placeholder="Nama"
+            value={form.nama}
+            onChange={(v)=>setForm({...form,nama:v})}
+          />
 
+          <Input icon={<Mail size={14}/>} placeholder="Email"
+            value={form.email}
+            onChange={(v)=>setForm({...form,email:v})}
+          />
+
+          {/* DOB */}
           <input
             type="date"
+            value={form.dob}
             className="w-full p-3 bg-black/40 rounded-xl text-xs"
             onChange={(e)=>setForm({...form,dob:e.target.value})}
           />
 
+          {form.dob && (
+            <p className="text-[10px] text-gray-400">
+              Umur: {getAge(form.dob)} tahun
+            </p>
+          )}
+
+          {/* DOMISILI */}
           <select
+            value={form.domisili}
+            onChange={(e)=>setForm({...form, domisili: e.target.value})}
             className="w-full p-3 bg-black/40 rounded-xl text-xs"
-            onChange={(e)=>setForm({...form,domisili:e.target.value})}
           >
-            <option value="">Pilih Domisili</option>
-            {DOMISILI.map(d => <option key={d}>{d}</option>)}
+            <option value="">Pilih Provinsi</option>
+            {DOMISILI.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
           </select>
 
-          <Input icon={<LinkIcon size={14}/>} placeholder="Link TikTok" onChange={(v)=>setForm({...form,tiktok:v})}/>
+          <Input icon={<LinkIcon size={14}/>} placeholder="Link TikTok"
+            value={form.tiktok}
+            onChange={(v)=>setForm({...form,tiktok:v})}
+          />
 
           <motion.button
             whileTap={{ scale: 0.95 }}
             disabled={loading}
-            className="w-full p-4 bg-blue-600 rounded-xl font-bold"
+            className="w-full p-4 bg-blue-600 rounded-xl font-bold hover:bg-blue-700 transition"
           >
             {loading ? "Processing..." : "Register"}
           </motion.button>
 
         </form>
+
+        {/* LOGIN */}
+        <button
+          type="button"
+          onClick={() => navigate("/login")}
+          className="w-full mt-4 text-xs text-blue-400 hover:underline"
+        >
+          Sudah punya akun? Login →
+        </button>
+
       </motion.div>
     </div>
   );
 };
 
-const Input = ({ icon, placeholder, onChange }) => (
+const Input = ({ icon, placeholder, value, onChange }) => (
   <div className="relative">
     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
       {icon}
     </div>
     <input
+      value={value}
       placeholder={placeholder}
       onChange={(e)=>onChange(e.target.value)}
-      className="w-full pl-10 p-3 bg-black/40 rounded-xl text-xs"
+      className="w-full pl-10 p-3 bg-black/40 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
     />
   </div>
 );
