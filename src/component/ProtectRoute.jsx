@@ -4,7 +4,6 @@ import { Navigate, useLocation } from "react-router-dom";
 const ProtectedRoute = ({ children, requireID = true }) => {
   const location = useLocation();
 
-  // 🔥 SAFE PARSE (hindari crash kalau JSON rusak)
   let localUser = null;
   try {
     localUser = JSON.parse(localStorage.getItem("eas_user_data"));
@@ -15,7 +14,7 @@ const ProtectedRoute = ({ children, requireID = true }) => {
 
   const hasID = localStorage.getItem("eas_verified") === "true";
 
-  // 🔒 1. BELUM REGISTER
+  // 🔒 1. BELUM REGISTER → ke Register
   if (!localUser) {
     return (
       <Navigate
@@ -26,19 +25,17 @@ const ProtectedRoute = ({ children, requireID = true }) => {
     );
   }
 
-  // 🔒 2. BELUM AKTIVASI ID
-  if (requireID && !hasID) {
-    // ❗ Hindari loop
-    if (location.pathname !== "/access-portal") {
-      return <Navigate to="/access-portal" replace />;
-    }
-  }
-
-  // 🔒 3. SUDAH VERIFIED TAPI MASIH DI ACCESS PORTAL → LEMPAR KE DASHBOARD
+  // 🔒 2. SUDAH VERIFIED + DI ACCESS PORTAL → ke Dashboard
   if (hasID && location.pathname === "/access-portal") {
     return <Navigate to="/" replace />;
   }
 
+  // 🔒 3. BELUM VERIFIED + BUKAN DI ACCESS PORTAL → ke Access Portal
+  if (requireID && !hasID && location.pathname !== "/access-portal") {
+    return <Navigate to="/access-portal" replace />;
+  }
+
+  // ✅ Aman, render halaman
   return children;
 };
 
