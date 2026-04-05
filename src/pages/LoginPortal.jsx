@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db, auth } from "../api/config";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, Loader2, ShieldCheck, KeyRound } from "lucide-react";
@@ -24,37 +24,37 @@ const LoginPortal = () => {
     setStatus("");
 
     try {
-      const res = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+      // ✅ Login Firebase Auth
+      const res = await signInWithEmailAndPassword(
+        auth,
+        email.toLowerCase().trim(),
+        password
+      );
       const uid = res.user.uid;
 
-      // Cari dokumen user di Firestore by UID
-      // Karena addDoc generate ID otomatis (bukan UID), perlu query by email
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("private.email", "==", email.toLowerCase().trim()));
-      const snapshot = await getDocs(q);
+      // ✅ Langsung ambil doc by UID (tidak perlu query)
+      const userSnap = await getDoc(doc(db, "users", uid));
 
-      if (snapshot.empty) {
+      if (!userSnap.exists()) {
         setStatus("❌ Data user tidak ditemukan");
         return;
       }
 
-      const userDoc = snapshot.docs[0];
-      const data = userDoc.data();
+      const data = userSnap.data();
 
-      // Simpan session
+      // ✅ Simpan session
       localStorage.setItem("eas_user_data", JSON.stringify({
-        id: userDoc.id,
+        id: uid,
         ...data.public
       }));
 
-      // Set verified dari Firestore
+      // ✅ Verified dari Firestore
       localStorage.setItem(
         "eas_verified",
         data.system?.verified ? "true" : "false"
       );
 
       setStatus("✅ Login berhasil");
-
       await new Promise((res) => setTimeout(res, 500));
 
       if (data.system?.verified) {
@@ -98,17 +98,12 @@ const LoginPortal = () => {
     <div className="min-h-screen flex items-center justify-center bg-[#00050d] text-white px-6">
       <div className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-6 shadow-xl">
 
-        {/* HEADER */}
         <div className="text-center">
-          <h1 className="text-xl font-black tracking-widest text-blue-400">
-            EAS LOGIN
-          </h1>
+          <h1 className="text-xl font-black tracking-widest text-blue-400">EAS LOGIN</h1>
           <p className="text-xs text-gray-500">Secure Access System</p>
         </div>
 
-        {/* FORM */}
         <form onSubmit={handleLogin} className="space-y-4">
-
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
             <input
@@ -138,10 +133,8 @@ const LoginPortal = () => {
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : "Login"}
           </button>
-
         </form>
 
-        {/* RESET */}
         <button
           type="button"
           onClick={handleReset}
@@ -150,12 +143,10 @@ const LoginPortal = () => {
           <KeyRound size={14} /> Lupa Password
         </button>
 
-        {/* STATUS */}
         {status && (
           <div className="text-center text-xs text-gray-400">{status}</div>
         )}
 
-        {/* FOOTER */}
         <div className="flex justify-center gap-2 text-[10px] opacity-40">
           <ShieldCheck size={12} /> Firebase Secured
         </div>
