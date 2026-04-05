@@ -42,15 +42,26 @@ const RegisterPortal = () => {
     return Math.abs(new Date(diff).getUTCFullYear() - 1970);
   };
 
+  const validate = () => {
+    if (!photo) return "Upload foto dulu";
+    if (form.nama.trim().length < 3) return "Nama minimal 3 huruf";
+    if (!/\S+@\S+\.\S+/.test(form.email)) return "Email tidak valid";
+    if (!form.dob) return "Tanggal lahir wajib";
+    if (!DOMISILI.includes(form.domisili)) return "Pilih domisili valid";
+    if (!form.tiktok.toLowerCase().includes("tiktok")) return "Link TikTok tidak valid";
+
+    const umur = getAge(form.dob);
+    if (umur < 10) return "Minimal umur 10 tahun";
+
+    return null;
+  };
+
   const handlePhoto = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/"))
-      return alert("File harus gambar");
-
-    if (file.size > 2 * 1024 * 1024)
-      return alert("Max 2MB");
+    if (!file.type.startsWith("image/")) return alert("File harus gambar");
+    if (file.size > 2 * 1024 * 1024) return alert("Max 2MB");
 
     setPhoto(file);
     setPreview(URL.createObjectURL(file));
@@ -58,22 +69,16 @@ const RegisterPortal = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (!photo) return alert("Upload foto dulu");
-    if (form.nama.trim().length < 3) return alert("Nama minimal 3 huruf");
-    if (!form.email.includes("@")) return alert("Email tidak valid");
-    if (!form.dob) return alert("Tanggal lahir wajib");
-    if (!DOMISILI.includes(form.domisili)) return alert("Pilih domisili valid");
-    if (!form.tiktok.includes("tiktok")) return alert("Link TikTok tidak valid");
-
-    const umur = getAge(form.dob);
-    if (umur < 10) return alert("Minimal umur 10 tahun");
+    const errorMsg = validate();
+    if (errorMsg) return alert(errorMsg);
 
     setLoading(true);
 
     try {
-      // 🔥 Upload Foto
-      const fileName = `gen${gen}_${Date.now()}.jpg`;
+      // 🔥 Upload Foto (unique name anti tabrakan)
+      const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
 
       const { error } = await supabaseMedia.storage
         .from("eas-idcard")
@@ -90,11 +95,12 @@ const RegisterPortal = () => {
       const qrValue = `EAS|${memberId}`;
       const qrImage = await QRCode.toDataURL(qrValue);
 
-      // 🔥 STRUCTURE DATA
+      const umur = getAge(form.dob);
+
+      // 🔥 STRUCTURE (AMAN)
       const userDoc = {
         public: {
           nama: form.nama,
-          email: form.email, // 🔥 kalau mau private, pindahin ke private
           umur,
           dob: form.dob,
           domisili: form.domisili,
@@ -104,11 +110,17 @@ const RegisterPortal = () => {
           gen,
           role: "member"
         },
+
+        private: {
+          email: form.email // 🔒 hanya backend/admin tertentu boleh lihat
+        },
+
         system: {
           createdAt: new Date().toISOString(),
           verified: false,
           banned: false
         },
+
         meta: {
           qrValue,
           qrImage
@@ -117,7 +129,7 @@ const RegisterPortal = () => {
 
       const ref = await addDoc(collection(db, "users"), userDoc);
 
-      // 🔥 LOCAL SAFE DATA
+      // 🔐 LOCAL SAFE
       localStorage.setItem(
         "eas_user_data",
         JSON.stringify({
@@ -223,7 +235,8 @@ const RegisterPortal = () => {
           <motion.button
             whileTap={{ scale: 0.95 }}
             disabled={loading}
-            className="w-full p-4 bg-blue-600 rounded-xl font-bold hover:bg-blue-700 transition"
+            className={`w-full p-4 rounded-xl font-bold transition
+              ${loading ? "bg-gray-700" : "bg-blue-600 hover:bg-blue-700"}`}
           >
             {loading ? "Processing..." : "Register"}
           </motion.button>
