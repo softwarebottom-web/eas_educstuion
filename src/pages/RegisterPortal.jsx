@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, supabaseMedia } from "../api/config";
 import { collection, addDoc } from "firebase/firestore";
-import { UploadCloud, User, Mail, MapPin, Link as LinkIcon } from "lucide-react";
+import { UploadCloud, User, Mail, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
@@ -77,7 +77,7 @@ const RegisterPortal = () => {
     setLoading(true);
 
     try {
-      // 🔥 Upload Foto (unique name anti tabrakan)
+      // 🔥 Upload foto
       const fileName = `gen${gen}_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
 
       const { error } = await supabaseMedia.storage
@@ -97,7 +97,7 @@ const RegisterPortal = () => {
 
       const umur = getAge(form.dob);
 
-      // 🔥 STRUCTURE (AMAN)
+      // 🔥 FIRESTORE STRUCTURE
       const userDoc = {
         public: {
           nama: form.nama,
@@ -110,17 +110,14 @@ const RegisterPortal = () => {
           gen,
           role: "member"
         },
-
         private: {
-          email: form.email // 🔒 hanya backend/admin tertentu boleh lihat
+          email: form.email
         },
-
         system: {
           createdAt: new Date().toISOString(),
           verified: false,
           banned: false
         },
-
         meta: {
           qrValue,
           qrImage
@@ -129,17 +126,25 @@ const RegisterPortal = () => {
 
       const ref = await addDoc(collection(db, "users"), userDoc);
 
-      // 🔐 LOCAL SAFE
-      localStorage.setItem(
-        "eas_user_data",
-        JSON.stringify({
-          id: ref.id,
-          ...userDoc.public
-        })
-      );
+      // 🔐 LOCAL SAFE DATA
+      const safeUser = {
+        id: ref.id,
+        nama: userDoc.public.nama,
+        gen: userDoc.public.gen,
+        memberId: userDoc.public.memberId,
+        domisili: userDoc.public.domisili,
+        umur: userDoc.public.umur,
+        tiktok: userDoc.public.tiktok,
+        photo: userDoc.public.photo
+      };
 
-      alert("REGISTER BERHASIL 🚀");
-      navigate("/access-portal");
+      localStorage.setItem("eas_user_data", JSON.stringify(safeUser));
+      localStorage.setItem("eas_verified", "false");
+
+      // 🚀 REDIRECT FIX
+      setTimeout(() => {
+        navigate("/access-portal", { replace: true });
+      }, 300);
 
     } catch (err) {
       console.error(err);
@@ -169,7 +174,7 @@ const RegisterPortal = () => {
               key={g}
               type="button"
               onClick={() => setGen(g)}
-              className={`p-3 rounded-xl text-xs font-bold transition
+              className={`p-3 rounded-xl text-xs font-bold
               ${gen === g ? "bg-blue-600" : "bg-gray-900 text-gray-400"}`}
             >
               GEN {g}
@@ -180,7 +185,7 @@ const RegisterPortal = () => {
         <form onSubmit={handleRegister} className="space-y-4">
 
           {/* FOTO */}
-          <motion.label whileHover={{ scale: 1.05 }} className="flex justify-center cursor-pointer">
+          <label className="flex justify-center cursor-pointer">
             {preview ? (
               <img src={preview} className="w-24 h-24 rounded-full object-cover"/>
             ) : (
@@ -189,19 +194,11 @@ const RegisterPortal = () => {
               </div>
             )}
             <input type="file" hidden onChange={handlePhoto}/>
-          </motion.label>
+          </label>
 
-          <Input icon={<User size={14}/>} placeholder="Nama"
-            value={form.nama}
-            onChange={(v)=>setForm({...form,nama:v})}
-          />
+          <Input placeholder="Nama" value={form.nama} onChange={(v)=>setForm({...form,nama:v})}/>
+          <Input placeholder="Email" value={form.email} onChange={(v)=>setForm({...form,email:v})}/>
 
-          <Input icon={<Mail size={14}/>} placeholder="Email"
-            value={form.email}
-            onChange={(v)=>setForm({...form,email:v})}
-          />
-
-          {/* DOB */}
           <input
             type="date"
             value={form.dob}
@@ -210,12 +207,11 @@ const RegisterPortal = () => {
           />
 
           {form.dob && (
-            <p className="text-[10px] text-gray-400">
+            <p className="text-xs text-gray-400">
               Umur: {getAge(form.dob)} tahun
             </p>
           )}
 
-          {/* DOMISILI */}
           <select
             value={form.domisili}
             onChange={(e)=>setForm({...form, domisili: e.target.value})}
@@ -227,27 +223,20 @@ const RegisterPortal = () => {
             ))}
           </select>
 
-          <Input icon={<LinkIcon size={14}/>} placeholder="Link TikTok"
-            value={form.tiktok}
-            onChange={(v)=>setForm({...form,tiktok:v})}
-          />
+          <Input placeholder="Link TikTok" value={form.tiktok} onChange={(v)=>setForm({...form,tiktok:v})}/>
 
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+          <button
             disabled={loading}
-            className={`w-full p-4 rounded-xl font-bold transition
-              ${loading ? "bg-gray-700" : "bg-blue-600 hover:bg-blue-700"}`}
+            className="w-full p-4 bg-blue-600 rounded-xl font-bold"
           >
             {loading ? "Processing..." : "Register"}
-          </motion.button>
+          </button>
 
         </form>
 
-        {/* LOGIN */}
         <button
-          type="button"
           onClick={() => navigate("/login")}
-          className="w-full mt-4 text-xs text-blue-400 hover:underline"
+          className="w-full mt-4 text-xs text-blue-400"
         >
           Sudah punya akun? Login →
         </button>
@@ -257,18 +246,13 @@ const RegisterPortal = () => {
   );
 };
 
-const Input = ({ icon, placeholder, value, onChange }) => (
-  <div className="relative">
-    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-      {icon}
-    </div>
-    <input
-      value={value}
-      placeholder={placeholder}
-      onChange={(e)=>onChange(e.target.value)}
-      className="w-full pl-10 p-3 bg-black/40 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-    />
-  </div>
+const Input = ({ placeholder, value, onChange }) => (
+  <input
+    value={value}
+    placeholder={placeholder}
+    onChange={(e)=>onChange(e.target.value)}
+    className="w-full p-3 bg-black/40 rounded-xl text-xs"
+  />
 );
 
 export default RegisterPortal;
