@@ -4,13 +4,12 @@ import { collection, addDoc } from "firebase/firestore";
 import { UploadCloud, User, Mail, MapPin, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
-import bcrypt from "bcryptjs";
 import { motion } from "framer-motion";
 
 const DOMISILI = [
-  "Jakarta", "Surabaya", "Bandung", "Medan", "Makassar",
-  "Semarang", "Yogyakarta", "Palembang", "Denpasar",
-  "Balikpapan", "Malang", "Bogor", "Bekasi", "Tangerang"
+  "Jakarta","Surabaya","Bandung","Medan","Makassar",
+  "Semarang","Yogyakarta","Palembang","Denpasar",
+  "Balikpapan","Malang","Bogor","Bekasi","Tangerang"
 ];
 
 const RegisterPortal = () => {
@@ -57,19 +56,11 @@ const RegisterPortal = () => {
     e.preventDefault();
 
     if (!photo) return alert("Upload foto dulu");
-
-    if (form.nama.trim().length < 3)
-      return alert("Nama minimal 3 huruf");
-
-    if (!form.email.includes("@"))
-      return alert("Email tidak valid");
-
+    if (form.nama.trim().length < 3) return alert("Nama minimal 3 huruf");
+    if (!form.email.includes("@")) return alert("Email tidak valid");
     if (!form.dob) return alert("Tanggal lahir wajib");
-
     if (!form.domisili) return alert("Pilih domisili");
-
-    if (!form.tiktok.includes("tiktok"))
-      return alert("Link TikTok tidak valid");
+    if (!form.tiktok.includes("tiktok")) return alert("Link TikTok tidak valid");
 
     const umur = getAge(form.dob);
     if (umur < 10) return alert("Minimal umur 10 tahun");
@@ -90,16 +81,14 @@ const RegisterPortal = () => {
         .from("eas-idcard")
         .getPublicUrl(fileName);
 
-      // 🔐 Generate Core Data
+      // 🔐 CORE ID SYSTEM
       const memberId = `EAS-${gen}-${Date.now().toString().slice(-6)}`;
-      const password = Math.random().toString(36).slice(-8);
-      const passwordHash = await bcrypt.hash(password, 10);
       const signature = crypto.randomUUID();
 
       const qrValue = `EAS|${memberId}|${signature}`;
       const qrImage = await QRCode.toDataURL(qrValue);
 
-      // 🔥 Firestore Structure
+      // 🔥 STRUCTURE DATA
       const userDoc = {
         public: {
           nama: form.nama,
@@ -111,16 +100,18 @@ const RegisterPortal = () => {
           gen,
           role: "member"
         },
+
         private: {
           email: form.email,
-          passwordHash,
           signature
         },
+
         system: {
           createdAt: new Date().toISOString(),
           verified: false,
           banned: false
         },
+
         meta: {
           qrValue,
           qrImage
@@ -129,7 +120,7 @@ const RegisterPortal = () => {
 
       const ref = await addDoc(collection(db, "users"), userDoc);
 
-      // 🔐 Save Safe Local Data
+      // 🔐 LOCAL SAFE DATA
       localStorage.setItem(
         "eas_user_data",
         JSON.stringify({
@@ -138,18 +129,19 @@ const RegisterPortal = () => {
         })
       );
 
-      // 📩 Email Queue
+      // 📩 EMAIL QUEUE (TANPA PASSWORD)
       await addDoc(collection(db, "mail_queue"), {
         to: form.email,
         message: {
-          subject: "EAS MEMBER ACCESS",
+          subject: "EAS MEMBER ID",
           text: `
 Halo ${form.nama},
 
-Member ID: ${memberId}
-Password: ${password}
+Akun kamu berhasil dibuat.
 
-Simpan baik-baik.
+Member ID: ${memberId}
+
+Gunakan ID ini untuk login atau scan QR.
 
 - EAS System
           `
@@ -186,7 +178,7 @@ Simpan baik-baik.
             <button
               key={g}
               onClick={() => setGen(g)}
-              className={`p-3 rounded-xl text-xs font-bold transition
+              className={`p-3 rounded-xl text-xs font-bold
               ${gen === g ? "bg-blue-600" : "bg-gray-900 text-gray-400"}`}
             >
               GEN {g}
@@ -217,7 +209,6 @@ Simpan baik-baik.
             onChange={(e)=>setForm({...form,dob:e.target.value})}
           />
 
-          {/* DOMISILI */}
           <select
             className="w-full p-3 bg-black/40 rounded-xl text-xs"
             onChange={(e)=>setForm({...form,domisili:e.target.value})}
@@ -231,7 +222,7 @@ Simpan baik-baik.
           <motion.button
             whileTap={{ scale: 0.95 }}
             disabled={loading}
-            className="w-full p-4 bg-blue-600 rounded-xl font-bold hover:bg-blue-700 transition"
+            className="w-full p-4 bg-blue-600 rounded-xl font-bold"
           >
             {loading ? "Processing..." : "Register"}
           </motion.button>
@@ -250,7 +241,7 @@ const Input = ({ icon, placeholder, onChange }) => (
     <input
       placeholder={placeholder}
       onChange={(e)=>onChange(e.target.value)}
-      className="w-full pl-10 p-3 bg-black/40 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+      className="w-full pl-10 p-3 bg-black/40 rounded-xl text-xs"
     />
   </div>
 );
