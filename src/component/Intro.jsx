@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldAlert, Scale, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
@@ -8,7 +8,6 @@ const Intro = ({ onFinish }) => {
 
   const togglePasal = (id) => setOpenPasal(openPasal === id ? null : id);
 
-  // 🔊 SOUND (dipanggil saat user klik, biar ga kena block browser)
   const playWelcomeSound = () => {
     const audio = new Audio("/assets/welcome.mp3");
     audio.volume = 0.5;
@@ -20,7 +19,6 @@ const Intro = ({ onFinish }) => {
     setStep(2);
   };
 
-  // DATA UUD
   const UUD_DATA = [
     { id: 1, title: "Pasal 1: Identitas", content: "• Setiap anggota memiliki hak untuk menjaga identitas masing-masing.\n• Dilarang mengejek identitas satu sama lain.\n• Dilarang menyebarkan identitas sesama anggota tanpa izin resmi." },
     { id: 2, title: "Pasal 2: Anggota", content: "• Hak mendapatkan ilmu, kebahagiaan, dan berbicara.\n• Wajib patuhi aturan dan terima konsekuensi.\n• Bebas stiker (non-dewasa).\n• Dilarang mengaku Admin/memberi SP." },
@@ -38,33 +36,67 @@ const Intro = ({ onFinish }) => {
     { type: "Petinggi", items: ["Haus Kekuasaan: SP 5", "Tindakan Tanpa Alasan: SP 5", "Tidak Profesional: SP 4/Turun Jabatan"] }
   ];
 
+  const ADMIN_STRUCTURE = [
+    { role: "Owner", name: "Shadow", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30" },
+    { role: "Co-Owner", name: "Wendy", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
+    { role: "Co-Owner", name: "Dr. Ryneford", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
+    { role: "Admin", name: "ALZZ", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30" },
+    { role: "Admin", name: "Fii", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30" },
+    { role: "Admin", name: "Nay", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30" },
+  ];
+
+  const EDITOR_STRUCTURE = [
+    { role: "Ketua Editor", name: "Zef", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/30" },
+    { role: "Wakil Editor", name: "Dani", color: "text-purple-300", bg: "bg-purple-500/10 border-purple-500/30" },
+    { role: "Admin Editor", name: "Neo", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/30" },
+    { role: "Admin Editor", name: "Hani", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/30" },
+  ];
+
   return (
     <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-4">
       <AnimatePresence mode="wait">
-        {step === 1 ? (
-          <motion.div 
+
+        {step === 1 && (
+          <motion.div
             key="logo"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, y: -50 }}
             className="text-center"
           >
-            {/* ✅ FIX LOGO PATH */}
-            <img src="/assets/logo_eas.png" className="w-32 mx-auto mb-6 animate-pulse" />
+            {/* ✅ VIDEO MP4 */}
+            <div className="w-40 h-40 mx-auto mb-6 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.3)]">
+              <video
+                src="/assets/intro.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.parentElement.innerHTML = '<img src="/assets/logo_eas.png" class="w-full h-full object-contain p-4 animate-pulse" />';
+                }}
+              />
+            </div>
 
             <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">
               EAS PORTAL
             </h1>
-
-            <button 
+            <p className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase">
+              Extra-Atmospheric Studies
+            </p>
+            <button
               onClick={handleStart}
               className="mt-10 px-8 py-3 bg-blue-600 rounded-full font-bold hover:bg-cyan-500 transition"
             >
               READ CONSTITUTION
             </button>
           </motion.div>
-        ) : (
-          <motion.div 
+        )}
+
+        {step === 2 && (
+          <motion.div
             key="uud"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -80,16 +112,13 @@ const Intro = ({ onFinish }) => {
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {UUD_DATA.map((item) => (
                 <div key={item.id} className="border border-gray-800 rounded-xl overflow-hidden">
-                  <button 
+                  <button
                     onClick={() => togglePasal(item.id)}
                     className="w-full p-4 flex justify-between items-center bg-black/40 text-left"
                   >
-                    <span className="text-xs font-bold uppercase text-blue-300">
-                      {item.title}
-                    </span>
-                    {openPasal === item.id ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                    <span className="text-xs font-bold uppercase text-blue-300">{item.title}</span>
+                    {openPasal === item.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
-
                   {openPasal === item.id && (
                     <div className="p-4 text-[11px] leading-relaxed text-gray-400 bg-black/20 whitespace-pre-line">
                       {item.content}
@@ -103,26 +132,48 @@ const Intro = ({ onFinish }) => {
                 <div className="flex items-center gap-2 text-red-500 mb-4 font-bold uppercase italic">
                   <ShieldAlert size={18} /> Protocol Sanksi
                 </div>
-
                 {SANKSI_DATA.map((s, idx) => (
                   <div key={idx} className="mb-4 bg-red-950/10 border border-red-900/30 p-4 rounded-xl">
                     <p className="text-[10px] font-black text-red-400 mb-2 underline tracking-widest">
                       SANKSI {s.type.toUpperCase()}
                     </p>
-
                     <ul className="space-y-1">
                       {s.items.map((txt, i) => (
-                        <li key={i} className="text-[10px] text-gray-400">
-                          • {txt}
-                        </li>
+                        <li key={i} className="text-[10px] text-gray-400">• {txt}</li>
                       ))}
                     </ul>
                   </div>
                 ))}
               </div>
+
+              {/* ✅ STRUKTUR ADMIN */}
+              <div className="mt-8">
+                <p className="text-[10px] font-black text-yellow-400 tracking-widest uppercase mb-4">✨ Struktur Admin</p>
+                <div className="space-y-2">
+                  {ADMIN_STRUCTURE.map((s, i) => (
+                    <div key={i} className={`flex justify-between items-center p-3 rounded-xl border ${s.bg}`}>
+                      <span className="text-[10px] text-gray-500 uppercase font-bold">{s.role}</span>
+                      <span className={`text-[11px] font-black ${s.color}`}>{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ✅ STRUKTUR EDITOR */}
+              <div className="mt-6 mb-4">
+                <p className="text-[10px] font-black text-purple-400 tracking-widest uppercase mb-4">👑 Struktur Editor</p>
+                <div className="space-y-2">
+                  {EDITOR_STRUCTURE.map((s, i) => (
+                    <div key={i} className={`flex justify-between items-center p-3 rounded-xl border ${s.bg}`}>
+                      <span className="text-[10px] text-gray-500 uppercase font-bold">{s.role}</span>
+                      <span className={`text-[11px] font-black ${s.color}`}>{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <button 
+            <button
               onClick={onFinish}
               className="mt-6 w-full py-4 bg-green-600 rounded-2xl font-black tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-green-500 transition"
             >
@@ -130,6 +181,7 @@ const Intro = ({ onFinish }) => {
             </button>
           </motion.div>
         )}
+
       </AnimatePresence>
     </div>
   );
