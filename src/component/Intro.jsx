@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldAlert, Scale, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
-// 🔊 Sound helper — Web Audio API, no file needed
-const playSound = (type = "click") => {
+// 🔊 Sound helper
+export const playSound = (type = "click") => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -15,65 +15,101 @@ const playSound = (type = "click") => {
       osc.type = "sine";
       osc.frequency.setValueAtTime(880, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
+      osc.start(); osc.stop(ctx.currentTime + 0.1);
     } else if (type === "open") {
       osc.type = "triangle";
       osc.frequency.setValueAtTime(300, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.2);
+      osc.start(); osc.stop(ctx.currentTime + 0.2);
     } else if (type === "success") {
-      // Chord arpeggio
       [523, 659, 784].forEach((freq, i) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.type = "sine";
-        o.frequency.value = freq;
+        o.connect(g); g.connect(ctx.destination);
+        o.type = "sine"; o.frequency.value = freq;
         g.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
-        g.gain.linearRampToValueAtTime(0.15, ctx.currentTime + i * 0.08 + 0.02);
+        g.gain.linearRampToValueAtTime(0.12, ctx.currentTime + i * 0.08 + 0.02);
         g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.2);
         o.start(ctx.currentTime + i * 0.08);
-        o.stop(ctx.currentTime + i * 0.08 + 0.2);
+        o.stop(ctx.currentTime + i * 0.08 + 0.25);
       });
       return;
     } else if (type === "nav") {
       osc.type = "square";
       osc.frequency.setValueAtTime(200, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
+      osc.start(); osc.stop(ctx.currentTime + 0.08);
     }
   } catch (_) {}
 };
 
+// Loading bar shimmer component
+const LoadingBar = ({ progress, color = "#3b82f6" }) => (
+  <div className="w-48 h-1 bg-gray-800 rounded-full overflow-hidden">
+    <motion.div
+      className="h-full rounded-full"
+      style={{ background: color }}
+      initial={{ width: 0 }}
+      animate={{ width: `${progress}%` }}
+      transition={{ duration: 0.3 }}
+    />
+  </div>
+);
+
 const Intro = ({ onFinish }) => {
-  const [step, setStep] = useState(1);
+  // Steps: "splash" → "loading" → "reveal" → "constitution"
+  const [phase, setPhase] = useState("splash");
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadText, setLoadText] = useState("Initializing...");
   const [openPasal, setOpenPasal] = useState(null);
+  const videoRef = useRef(null);
+
+  const LOAD_STEPS = [
+    { text: "Connecting to EAS Satellite...", pct: 20 },
+    { text: "Loading Constitution Database...", pct: 45 },
+    { text: "Verifying Security Protocol...", pct: 70 },
+    { text: "Decrypting Member Records...", pct: 88 },
+    { text: "System Ready.", pct: 100 },
+  ];
+
+  // Auto-run loading sequence after splash
+  useEffect(() => {
+    if (phase !== "loading") return;
+
+    let i = 0;
+    const run = () => {
+      if (i >= LOAD_STEPS.length) {
+        setTimeout(() => setPhase("reveal"), 400);
+        return;
+      }
+      setLoadText(LOAD_STEPS[i].text);
+      setLoadProgress(LOAD_STEPS[i].pct);
+      i++;
+      setTimeout(run, 600);
+    };
+    const t = setTimeout(run, 300);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  const handleSplashClick = () => {
+    playSound("click");
+    setPhase("loading");
+  };
+
+  const handleRevealDone = () => {
+    playSound("success");
+    setPhase("constitution");
+  };
 
   const togglePasal = (id) => {
     playSound("open");
     setOpenPasal(openPasal === id ? null : id);
-  };
-
-  const playWelcomeSound = () => {
-    const audio = new Audio("/assets/welcome.mp3");
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
-  };
-
-  const handleStart = () => {
-    playSound("success");
-    playWelcomeSound();
-    setTimeout(() => setStep(2), 200);
   };
 
   const handleFinish = () => {
@@ -88,8 +124,8 @@ const Intro = ({ onFinish }) => {
     { id: 4, title: "Pasal 4: SP (Surat Peringatan)", content: "• Pelanggaran 2x (SP 1: Nasihat).\n• Pelanggaran 4x (SP 2: Teguran kecil).\n• SP 3 (Teguran keras).\n• SP 4 (Kick sementara).\n• SP 5 (Blacklist Permanen)." },
     { id: 5, title: "Pasal 5: Pendidikan", content: "• Admin wajib beri materi & quiz 1x sehari.\n• Member berhak tanya & koreksi materi.\n• Admin wajib koreksi jawaban member." },
     { id: 6, title: "Pasal 6 & 7: Keamanan & Rapat", content: "• Admin tanggung jawab keamanan.\n• Rapat dipimpin Admin, keputusan untuk kepentingan bersama.\n• Member berhak sampaikan pendapat logis." },
-    { id: 8, title: "Pasal 8: Perkataan & Sikap", content: "• Dilarang bermesraan (sesama/lawan jenis).\n• Dilarang rasis, pelecehan, & mencari pacar/mesum." },
-    { id: 9, title: "Pasal 9-12: Jabatan & Promosi", content: "• Admin tidak on 1 minggu = Copot jabatan.\n• Member berhak buat grup jika berguna.\n• Promosi wajib izin Admin. Link Phising = SP 5." },
+    { id: 7, title: "Pasal 8: Perkataan & Sikap", content: "• Dilarang bermesraan (sesama/lawan jenis).\n• Dilarang rasis, pelecehan, & mencari pacar/mesum." },
+    { id: 8, title: "Pasal 9-12: Jabatan & Promosi", content: "• Admin tidak on 1 minggu = Copot jabatan.\n• Member berhak buat grup jika berguna.\n• Promosi wajib izin Admin. Link Phising = SP 5." },
   ];
 
   const SANKSI_DATA = [
@@ -115,19 +151,28 @@ const Intro = ({ onFinish }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#00050d] text-white flex items-center justify-center p-4 overflow-hidden">
       <AnimatePresence mode="wait">
 
-        {step === 1 && (
+        {/* ===================== PHASE 1: SPLASH ===================== */}
+        {phase === "splash" && (
           <motion.div
-            key="logo"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="text-center"
+            key="splash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center justify-center w-full max-w-sm"
+            onClick={handleSplashClick}
           >
-            <div className="w-40 h-40 mx-auto mb-6 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.3)]">
+            {/* Big image/video with blink effect */}
+            <motion.div
+              className="relative w-full aspect-square max-w-xs rounded-3xl overflow-hidden border border-blue-500/20 shadow-[0_0_80px_rgba(59,130,246,0.25)] cursor-pointer"
+              animate={{ boxShadow: ["0 0 40px rgba(59,130,246,0.2)", "0 0 80px rgba(59,130,246,0.5)", "0 0 40px rgba(59,130,246,0.2)"] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+            >
               <video
+                ref={videoRef}
                 src="/assets/intro.mp4"
                 autoPlay
                 loop
@@ -136,18 +181,134 @@ const Intro = ({ onFinish }) => {
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = "none";
-                  e.target.parentElement.innerHTML = '<img src="/assets/logo_eas.png" class="w-full h-full object-contain p-4 animate-pulse" />';
+                  e.target.parentElement.querySelector(".fallback-img").style.display = "flex";
                 }}
               />
+              {/* Fallback */}
+              <div className="fallback-img w-full h-full bg-gradient-to-br from-blue-950 to-black items-center justify-center hidden absolute inset-0">
+                <img src="/assets/logo_eas.png" className="w-32 animate-pulse" alt="EAS" />
+              </div>
+
+              {/* Scan line animation */}
+              <motion.div
+                className="absolute inset-x-0 h-0.5 bg-blue-400/40 pointer-events-none"
+                animate={{ top: ["0%", "100%", "0%"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              />
+
+              {/* Blink overlay */}
+              <motion.div
+                className="absolute inset-0 bg-blue-500/10 pointer-events-none"
+                animate={{ opacity: [0, 0.3, 0, 0.15, 0] }}
+                transition={{ duration: 2, repeat: Infinity, times: [0, 0.1, 0.3, 0.5, 1] }}
+              />
+
+              {/* Corner decorations */}
+              <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-blue-400/60" />
+              <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-blue-400/60" />
+              <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-blue-400/60" />
+              <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-blue-400/60" />
+            </motion.div>
+
+            {/* Title */}
+            <motion.div
+              className="text-center mt-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h1 className="text-4xl font-black tracking-[0.3em] text-blue-400">EAS</h1>
+              <p className="text-[11px] text-gray-500 tracking-[0.4em] mt-1 uppercase">Education Astronomi Sains</p>
+              <motion.p
+                className="text-[9px] text-blue-500/60 mt-6 tracking-widest"
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                TAP TO ENTER
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ===================== PHASE 2: LOADING ===================== */}
+        {phase === "loading" && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center gap-6"
+          >
+            {/* Logo kecil */}
+            <motion.div
+              className="w-20 h-20 rounded-2xl overflow-hidden border border-blue-500/30"
+              animate={{ rotate: [0, 2, -2, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <video src="/assets/intro.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = "none"; e.target.parentElement.innerHTML = '<img src="/assets/logo_eas.png" class="w-full h-full object-contain p-2" />'; }}
+              />
+            </motion.div>
+
+            <div className="text-center space-y-4">
+              <p className="text-[10px] text-blue-400 font-mono tracking-widest animate-pulse">{loadText}</p>
+              <LoadingBar progress={loadProgress} />
+              <p className="text-[9px] text-gray-700 font-mono">{loadProgress}%</p>
             </div>
 
-            <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">EAS PORTAL</h1>
-            <p className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase">Extra-Atmospheric Studies</p>
+            {/* Blinking dots */}
+            <div className="flex gap-2">
+              {[0, 1, 2].map(i => (
+                <motion.div key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.3 }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ===================== PHASE 3: REVEAL ===================== */}
+        {phase === "reveal" && (
+          <motion.div
+            key="reveal"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.6, type: "spring" }}
+            className="text-center"
+          >
+            <motion.div
+              className="w-36 h-36 mx-auto mb-6 rounded-full overflow-hidden border-2 border-blue-500/40 shadow-[0_0_60px_rgba(59,130,246,0.4)]"
+              animate={{ boxShadow: ["0 0 40px rgba(59,130,246,0.3)", "0 0 80px rgba(59,130,246,0.6)", "0 0 40px rgba(59,130,246,0.3)"] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <video src="/assets/intro.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = "none"; e.target.parentElement.innerHTML = '<img src="/assets/logo_eas.png" class="w-full h-full object-contain p-3 animate-pulse" />'; }}
+              />
+            </motion.div>
+
+            <motion.h1
+              className="text-3xl font-black tracking-[0.4em] text-blue-400"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            >
+              EAS PORTAL
+            </motion.h1>
+
+            <motion.p
+              className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+            >
+              Education Astronomi Sains
+            </motion.p>
 
             <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
               whileTap={{ scale: 0.92 }}
               whileHover={{ scale: 1.05 }}
-              onClick={handleStart}
+              onClick={handleRevealDone}
               className="mt-10 px-8 py-3 bg-blue-600 rounded-full font-bold hover:bg-cyan-500 transition"
             >
               READ CONSTITUTION
@@ -155,9 +316,10 @@ const Intro = ({ onFinish }) => {
           </motion.div>
         )}
 
-        {step === 2 && (
+        {/* ===================== PHASE 4: CONSTITUTION ===================== */}
+        {phase === "constitution" && (
           <motion.div
-            key="uud"
+            key="constitution"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             className="w-full max-w-lg bg-gray-900/50 border border-blue-900 rounded-3xl p-6 h-[85vh] flex flex-col"
@@ -247,5 +409,4 @@ const Intro = ({ onFinish }) => {
   );
 };
 
-export { playSound };
 export default Intro;
