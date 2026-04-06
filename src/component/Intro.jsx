@@ -1,12 +1,68 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldAlert, Scale, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+
+// 🔊 Sound helper — Web Audio API, no file needed
+const playSound = (type = "click") => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === "click") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } else if (type === "open") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } else if (type === "success") {
+      // Chord arpeggio
+      [523, 659, 784].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = "sine";
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
+        g.gain.linearRampToValueAtTime(0.15, ctx.currentTime + i * 0.08 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.2);
+        o.start(ctx.currentTime + i * 0.08);
+        o.stop(ctx.currentTime + i * 0.08 + 0.2);
+      });
+      return;
+    } else if (type === "nav") {
+      osc.type = "square";
+      osc.frequency.setValueAtTime(200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    }
+  } catch (_) {}
+};
 
 const Intro = ({ onFinish }) => {
   const [step, setStep] = useState(1);
   const [openPasal, setOpenPasal] = useState(null);
 
-  const togglePasal = (id) => setOpenPasal(openPasal === id ? null : id);
+  const togglePasal = (id) => {
+    playSound("open");
+    setOpenPasal(openPasal === id ? null : id);
+  };
 
   const playWelcomeSound = () => {
     const audio = new Audio("/assets/welcome.mp3");
@@ -15,8 +71,14 @@ const Intro = ({ onFinish }) => {
   };
 
   const handleStart = () => {
+    playSound("success");
     playWelcomeSound();
-    setStep(2);
+    setTimeout(() => setStep(2), 200);
+  };
+
+  const handleFinish = () => {
+    playSound("success");
+    setTimeout(() => onFinish(), 300);
   };
 
   const UUD_DATA = [
@@ -64,7 +126,6 @@ const Intro = ({ onFinish }) => {
             exit={{ opacity: 0, y: -50 }}
             className="text-center"
           >
-            {/* ✅ VIDEO MP4 */}
             <div className="w-40 h-40 mx-auto mb-6 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.3)]">
               <video
                 src="/assets/intro.mp4"
@@ -80,18 +141,17 @@ const Intro = ({ onFinish }) => {
               />
             </div>
 
-            <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">
-              EAS PORTAL
-            </h1>
-            <p className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase">
-              Extra-Atmospheric Studies
-            </p>
-            <button
+            <h1 className="text-3xl font-black tracking-[0.5em] text-blue-500">EAS PORTAL</h1>
+            <p className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase">Extra-Atmospheric Studies</p>
+
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              whileHover={{ scale: 1.05 }}
               onClick={handleStart}
               className="mt-10 px-8 py-3 bg-blue-600 rounded-full font-bold hover:bg-cyan-500 transition"
             >
               READ CONSTITUTION
-            </button>
+            </motion.button>
           </motion.div>
         )}
 
@@ -104,9 +164,7 @@ const Intro = ({ onFinish }) => {
           >
             <div className="flex items-center gap-2 mb-6 border-b border-blue-900 pb-4">
               <Scale className="text-blue-400" />
-              <h2 className="font-black tracking-widest uppercase">
-                Undang-Undang Marga EAS
-              </h2>
+              <h2 className="font-black tracking-widest uppercase">Undang-Undang Marga EAS</h2>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
@@ -146,7 +204,7 @@ const Intro = ({ onFinish }) => {
                 ))}
               </div>
 
-              {/* ✅ STRUKTUR ADMIN */}
+              {/* STRUKTUR ADMIN */}
               <div className="mt-8">
                 <p className="text-[10px] font-black text-yellow-400 tracking-widest uppercase mb-4">✨ Struktur Admin</p>
                 <div className="space-y-2">
@@ -159,7 +217,7 @@ const Intro = ({ onFinish }) => {
                 </div>
               </div>
 
-              {/* ✅ STRUKTUR EDITOR */}
+              {/* STRUKTUR EDITOR */}
               <div className="mt-6 mb-4">
                 <p className="text-[10px] font-black text-purple-400 tracking-widest uppercase mb-4">👑 Struktur Editor</p>
                 <div className="space-y-2">
@@ -173,12 +231,14 @@ const Intro = ({ onFinish }) => {
               </div>
             </div>
 
-            <button
-              onClick={onFinish}
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              whileHover={{ scale: 1.02 }}
+              onClick={handleFinish}
               className="mt-6 w-full py-4 bg-green-600 rounded-2xl font-black tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-green-500 transition"
             >
               <CheckCircle2 size={20} /> SAYA PATUH & SETUJU
-            </button>
+            </motion.button>
           </motion.div>
         )}
 
@@ -187,4 +247,5 @@ const Intro = ({ onFinish }) => {
   );
 };
 
+export { playSound };
 export default Intro;
