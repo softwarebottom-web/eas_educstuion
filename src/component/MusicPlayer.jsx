@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { Music2, VolumeX, Volume2 } from "lucide-react";
 import { useEasStore, THEMES } from "../store/useStore";
+import { playSound } from "./Intro";
 
 const MusicPlayer = () => {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [tried, setTried] = useState(false);
 
   const { theme, musicVolume, setMusicVolume, musicMuted, setMusicMuted, musicEnabled } = useEasStore();
   const t = THEMES[theme] || THEMES.dark;
 
-  // ✅ 1 lagu, loop
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -20,14 +21,44 @@ const MusicPlayer = () => {
     audio.volume = musicMuted ? 0 : musicVolume;
   }, []);
 
-  // Sync volume
+  // ✅ Auto-play saat komponen mount — pakai interaction listener
+  useEffect(() => {
+    if (tried || !musicEnabled) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Coba autoplay langsung dulu
+    const tryPlay = () => {
+      audio.volume = musicMuted ? 0 : musicVolume;
+      audio.play()
+        .then(() => { setIsPlaying(true); setTried(true); })
+        .catch(() => {
+          // Browser block autoplay — tunggu interaksi pertama user
+          const onInteract = () => {
+            audio.play().then(() => { setIsPlaying(true); }).catch(() => {});
+            document.removeEventListener("click", onInteract);
+            document.removeEventListener("touchstart", onInteract);
+            document.removeEventListener("keydown", onInteract);
+          };
+          document.addEventListener("click", onInteract, { once: true });
+          document.addEventListener("touchstart", onInteract, { once: true });
+          document.addEventListener("keydown", onInteract, { once: true });
+          setTried(true);
+        });
+    };
+
+    tryPlay();
+  }, [musicEnabled]);
+
+  // Sync volume & mute
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = musicMuted ? 0 : musicVolume;
   }, [musicVolume, musicMuted]);
 
-  // Sync musicEnabled
+  // Pause kalau disabled
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -50,6 +81,7 @@ const MusicPlayer = () => {
 
   const togglePlay = () => {
     if (!musicEnabled) return;
+    playSound("click");
     const audio = audioRef.current;
     if (!audio) return;
     if (isPlaying) {
@@ -75,13 +107,11 @@ const MusicPlayer = () => {
     <div className="fixed bottom-24 right-4 z-50 flex flex-col items-end gap-2">
       <audio ref={audioRef} />
 
-      {/* EXPANDED PANEL */}
       {expanded && (
         <div
           className="w-52 rounded-2xl p-4 shadow-2xl border"
-          style={{ background: `${t.bg}f0`, borderColor: t.border, backdropFilter: "blur(20px)" }}
+          style={{ background: `${t.bg}f2`, borderColor: t.border, backdropFilter: "blur(20px)" }}
         >
-          {/* TRACK INFO */}
           <div className="mb-3 text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Music2 size={10} className={isPlaying ? "animate-pulse" : ""} style={{ color: t.accent }} />
@@ -93,15 +123,10 @@ const MusicPlayer = () => {
             <p className="text-[9px] text-gray-600">Loop Mode</p>
           </div>
 
-          {/* PROGRESS */}
           <div className="w-full h-1 bg-gray-800 rounded-full mb-3 cursor-pointer" onClick={seekTo}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${progress}%`, background: t.accent }}
-            />
+            <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: t.accent }} />
           </div>
 
-          {/* PLAY BUTTON */}
           <div className="flex justify-center mb-3">
             <button
               onClick={togglePlay}
@@ -112,16 +137,12 @@ const MusicPlayer = () => {
             </button>
           </div>
 
-          {/* VOLUME */}
           <div className="flex items-center gap-2">
-            <button onClick={() => setMusicMuted(!musicMuted)} style={{ color: t.accent2 }}>
+            <button onClick={() => { playSound("click"); setMusicMuted(!musicMuted); }} style={{ color: t.accent2 }}>
               {musicMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
             </button>
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
+              type="range" min="0" max="1" step="0.05"
               value={musicMuted ? 0 : musicVolume}
               onChange={(e) => { setMusicVolume(Number(e.target.value)); setMusicMuted(false); }}
               className="flex-1 h-1 cursor-pointer"
@@ -132,12 +153,8 @@ const MusicPlayer = () => {
         </div>
       )}
 
-      {/* FLOATING BUTTON */}
       <button
-        onClick={() => {
-          setExpanded(!expanded);
-          if (!isPlaying) togglePlay();
-        }}
+        onClick={() => { playSound("click"); setExpanded(!expanded); }}
         className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all border"
         style={{
           background: isPlaying ? t.accent : t.bg,
