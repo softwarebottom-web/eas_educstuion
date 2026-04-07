@@ -382,4 +382,153 @@ const Intro = ({ onFinish }) => {
               <Logo className="w-20 h-20" />
             </motion.div>
 
-       
+            <motion.h1 className="text-3xl font-black tracking-[0.4em] text-blue-400"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              EAS PORTAL
+            </motion.h1>
+            <motion.p className="text-[10px] text-gray-600 tracking-widest mt-2 uppercase"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+              Education Astronomi Sains
+            </motion.p>
+
+            <motion.button
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+              whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.05 }}
+              onClick={handleRevealDone}
+              className="mt-10 px-8 py-3 bg-blue-600 rounded-full font-bold hover:bg-cyan-500 transition"
+            >
+              READ CONSTITUTION
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ===== PHASE 4: CONSTITUTION ===== */}
+        {phase === "constitution" && (
+          <motion.div key="constitution"
+            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }}
+            className="w-full max-w-lg bg-gray-900/50 border border-blue-900 rounded-3xl p-6 h-[85vh] flex flex-col"
+          >
+            {/* Header dengan logo */}
+            <div className="flex items-center gap-3 mb-6 border-b border-blue-900 pb-4">
+              <Logo className="w-8 h-8" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <Scale className="text-blue-400" size={16} />
+                  <h2 className="font-black tracking-widest uppercase text-sm">Undang-Undang Marga EAS</h2>
+                </div>
+                <p className="text-[9px] text-gray-600 uppercase">Education Astronomi Sains</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+              {UUD_DATA.map((item) => (
+                <div key={item.id} className="border border-gray-800 rounded-xl overflow-hidden">
+                  <button onClick={() => togglePasal(item.id)}
+                    className="w-full p-4 flex justify-between items-center bg-black/40 text-left">
+                    <span className="text-xs font-bold uppercase text-blue-300">{item.title}</span>
+                    {openPasal === item.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  {openPasal === item.id && (
+                    <div className="p-4 text-[11px] leading-relaxed text-gray-400 bg-black/20 whitespace-pre-line">
+                      {item.content}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* SANKSI */}
+              <div className="mt-8">
+                <div className="flex items-center gap-2 text-red-500 mb-4 font-bold uppercase italic">
+                  <ShieldAlert size={18} /> Protocol Sanksi
+                </div>
+                {SANKSI_DATA.map((s, idx) => (
+                  <div key={idx} className="mb-4 bg-red-950/10 border border-red-900/30 p-4 rounded-xl">
+                    <p className="text-[10px] font-black text-red-400 mb-2 underline tracking-widest">SANKSI {s.type.toUpperCase()}</p>
+                    <ul className="space-y-1">
+                      {s.items.map((txt, i) => <li key={i} className="text-[10px] text-gray-400">• {txt}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+
+              {/* STRUKTUR ADMIN */}
+              <div className="mt-8">
+                <p className="text-[10px] font-black text-yellow-400 tracking-widest uppercase mb-4">✨ Struktur Admin</p>
+                <div className="space-y-2">
+                  {ADMIN_STRUCTURE.map((s, i) => (
+                    <div key={i} className={`flex justify-between items-center p-3 rounded-xl border ${s.bg}`}>
+                      <span className="text-[10px] text-gray-500 uppercase font-bold">{s.role}</span>
+                      <span className={`text-[11px] font-black ${s.color}`}>{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* STRUKTUR EDITOR */}
+              <div className="mt-6 mb-4">
+                <p className="text-[10px] font-black text-purple-400 tracking-widest uppercase mb-4">👑 Struktur Editor</p>
+                <div className="space-y-2">
+                  {EDITOR_STRUCTURE.map((s, i) => (
+                    <div key={i} className={`flex justify-between items-center p-3 rounded-xl border ${s.bg}`}>
+                      <span className="text-[10px] text-gray-500 uppercase font-bold">{s.role}</span>
+                      <span className={`text-[11px] font-black ${s.color}`}>{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol dengan loading state agar tidak asal tekan */}
+            <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: roadmapLoading ? 1 : 1.02 }}
+              onClick={handleFinish} disabled={roadmapLoading}
+              className="mt-6 w-full py-4 rounded-2xl font-black tracking-[0.15em] flex items-center justify-center gap-2 transition"
+              style={{ background: roadmapLoading ? "#374151" : "#16a34a" }}
+            >
+              {roadmapLoading ? (
+                <>
+                  <motion.div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                    animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }} />
+                  Memuat Panduan Daftar...
+                </>
+              ) : (
+                <><CheckCircle2 size={20} /> SAYA PATUH & SETUJU</>
+              )}
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ===== PHASE 5: ROADMAP ===== */}
+        {phase === "roadmap" && (
+          <motion.div key="roadmap"
+            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="w-full max-w-lg bg-gray-900/50 border border-blue-900 rounded-3xl p-6 h-[85vh] flex flex-col"
+          >
+            {/* Header dengan logo */}
+            <div className="flex items-center gap-3 mb-5 border-b border-blue-900 pb-4">
+              <Logo className="w-10 h-10" />
+              <div>
+                <h2 className="font-black tracking-widest uppercase text-sm text-blue-400">Cara Bergabung EAS</h2>
+                <p className="text-[9px] text-gray-500 uppercase tracking-wider">Roadmap Pendaftaran Member</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              <RoadmapSteps />
+            </div>
+
+            <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}
+              onClick={handleRoadmapDone}
+              className="mt-5 w-full py-4 bg-blue-600 rounded-2xl font-black tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-blue-500 transition"
+            >
+              🚀 MASUK KE PORTAL EAS
+            </motion.button>
+          </motion.div>
+        )}
+
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default Intro;
