@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../api/config";
 import { collection, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
-import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen, LogOut, CheckCircle, XCircle, Crown, KeyRound, ChevronDown, Link, Lock, Unlock } from "lucide-react";
+import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen, LogOut, CheckCircle, XCircle, Crown, KeyRound, ChevronDown, Link, Lock, Unlock, Shield, Radio } from "lucide-react";
 import AdminQuiz from "./AdminQuiz";
+import { AdminApplications, AdminWebinar, AdminLibraryManager } from "./AdminFeatures";
 import { playSound } from "../component/Intro";
 
 const ROLES = ["member", "moderator", "admin", "owner"];
@@ -170,6 +171,9 @@ const AdminDashboard = () => {
           { key: "members", label: "Members", icon: <Users size={14} /> },
           { key: "whatsapp", label: "WhatsApp", icon: <Link size={14} /> },
           { key: "quiz", label: "Quiz", icon: <BookOpen size={14} /> },
+          { key: "applications", label: "Lamaran", icon: <Shield size={14} /> },
+          { key: "webinar", label: "Webinar", icon: <Radio size={14} /> },
+          { key: "library", label: "Library", icon: <BookOpen size={14} /> },
         ].map((t) => (
           <button key={t.key}
             onClick={() => { playSound("click"); setTab(t.key); }}
@@ -290,6 +294,9 @@ const AdminDashboard = () => {
 
       {/* QUIZ TAB */}
       {tab === "quiz" && <AdminQuiz />}
+      {tab === "applications" && <AdminApplications role={role} />}
+      {tab === "webinar" && <AdminWebinar adminId={adminId} role={role} />}
+      {tab === "library" && <AdminLibraryManager />}
 
       {/* MODAL SET ADMIN CODE */}
       {codeModal && (
