@@ -8,12 +8,22 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // ✅ Panggil backend Vercel — bukan Groq langsung
 const generateQuiz = async () => {
-  const res = await fetch("/api/generate-quiz", { method: "POST" });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Gagal generate quiz");
+  let res, data;
+  try {
+    res = await fetch("/api/generate-quiz", { method: "POST" });
+    data = await res.json();
+  } catch (fetchErr) {
+    throw new Error("Tidak bisa terhubung ke server. Pastikan sudah deploy ke Vercel.");
   }
-  const data = await res.json();
+  if (!res.ok) {
+    const msg = data.hint
+      ? `${data.error} — ${data.hint}`
+      : data.error || "Gagal generate quiz";
+    throw new Error(msg);
+  }
+  if (!data.questions || data.questions.length === 0) {
+    throw new Error("Server tidak mengembalikan soal. Coba lagi.");
+  }
   return data.questions;
 };
 
