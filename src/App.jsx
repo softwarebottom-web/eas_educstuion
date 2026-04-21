@@ -8,7 +8,7 @@ import RegisterPortal from "./pages/RegisterPortal";
 import LoginPortal from "./pages/LoginPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
-import Library from "./pages/Libary";
+import Library from "./pages/Library";
 import GroqQuiz from "./pages/GroqQuiz";
 import About from "./pages/About";
 import Settings from "./pages/Settings";
