@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Telescope, Atom, Satellite, Globe2, FlaskConical, Orbit, ChevronLeft, RefreshCw, MapPin, Clock } from "lucide-react";
+import { Scan, Atom, Satellite, Globe2, FlaskConical, Orbit, ChevronLeft, RefreshCw, MapPin, Clock } from "lucide-react";
 import { playSound } from "../component/Intro";
 
 const P = { bg: "linear-gradient(135deg,#0a0015,#050010)", accent: "#a855f7", accent2: "#ec4899", border: "rgba(168,85,247,0.2)" };
