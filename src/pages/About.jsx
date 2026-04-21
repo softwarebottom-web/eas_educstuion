@@ -178,6 +178,23 @@ const BlackHoleCanvas = ({ accentColor, accent2 }) => {
 // ==========================================
 // MAIN ABOUT PAGE
 // ==========================================
+
+const ADMIN_STRUCTURE = [
+  { role: "Owner", name: "Shadow", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+  { role: "Co-Owner", name: "Wendy", color: "#f97316", bg: "rgba(249,115,22,0.1)" },
+  { role: "Co-Owner", name: "Dr. Ryneford", color: "#f97316", bg: "rgba(249,115,22,0.1)" },
+  { role: "Admin", name: "ALZZ", color: "#a855f7", bg: "rgba(168,85,247,0.1)" },
+  { role: "Admin", name: "Fii", color: "#a855f7", bg: "rgba(168,85,247,0.1)" },
+  { role: "Admin", name: "Nay", color: "#a855f7", bg: "rgba(168,85,247,0.1)" },
+];
+
+const EDITOR_STRUCTURE = [
+  { role: "Ketua Editor", name: "Zef", color: "#ec4899", bg: "rgba(236,72,153,0.1)" },
+  { role: "Wakil Editor", name: "Dani", color: "#db2777", bg: "rgba(219,39,119,0.1)" },
+  { role: "Admin Editor", name: "Neo", color: "#06b6d4", bg: "rgba(6,182,212,0.1)" },
+  { role: "Admin Editor", name: "Hani", color: "#06b6d4", bg: "rgba(6,182,212,0.1)" },
+];
+
 const About = () => {
   const navigate = useNavigate();
   const { theme, hologramMode, setHologramMode } = useEasStore();
