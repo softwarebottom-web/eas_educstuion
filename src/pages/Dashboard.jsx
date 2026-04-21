@@ -13,7 +13,7 @@ const ALL_MENUS = [
   { path: "/ai-quiz",   icon: Brain,       label: "AI Quiz",      desc: "Quiz astronomy AI harian",      color: "#a855f7" },
   { path: "/library",   icon: BookOpen,    label: "Library",      desc: "Jurnal & buku astronomi",       color: "#3b82f6" },
   { path: "/market",    icon: ShoppingBag, label: "Market",       desc: "Tukar point rewards",           color: "#ec4899" },
-  { path: "/solar",     icon: Telescope,   label: "Solar System", desc: "Sistem tata surya 3D",          color: "#f59e0b" },
+  { path: "/solar",     icon: Star,        label: "Solar System", desc: "Sistem tata surya 3D",          color: "#f59e0b" },
   { path: "/science",   icon: FlaskConical,label: "Science Hub",  desc: "APOD, ISS, exoplanet & more",  color: "#10b981" },
   { path: "/chat",      icon: MessageCircle,label:"Chat",         desc: "Debat & diskusi santai",        color: "#06b6d4" },
   { path: "/webinar",   icon: Radio,       label: "Webinar",      desc: "Sesi live & rapat EAS",         color: "#ef4444" },
