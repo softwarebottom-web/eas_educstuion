@@ -6,7 +6,7 @@ import { playSound } from "../component/Intro";
 const P = { bg: "linear-gradient(135deg,#0a0015,#050010)", accent: "#a855f7", accent2: "#ec4899", border: "rgba(168,85,247,0.2)" };
 
 const FEATURES = [
-  { id:"apod", icon:Telescope, color:"#8b5cf6", title:"NASA APOD", desc:"Astronomy Picture of the Day real dari NASA API" },
+  { id:"apod", icon:Scan, color:"#8b5cf6", title:"NASA APOD", desc:"Astronomy Picture of the Day real dari NASA API" },
   { id:"iss",  icon:Satellite,  color:"#3b82f6", title:"ISS Tracker", desc:"Posisi real-time ISS dari Open Notify API" },
   { id:"elements", icon:Atom,   color:"#ec4899", title:"Elemen Astronomi", desc:"Elemen kimia dalam konteks kosmologi" },
   { id:"exoplanet",icon:Orbit,  color:"#f59e0b", title:"Exoplanet Explorer", desc:"Data exoplanet dari NASA Exoplanet Archive" },
