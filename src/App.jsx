@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./api/config";
+
 import Intro from "./component/Intro";
 import Navbar from "./component/Navbar";
 import RegisterPortal from "./pages/RegisterPortal";
@@ -22,51 +29,208 @@ import { ApplyForm } from "./pages/AdminApply";
 
 const PURPLE = { bg: "#0a0015" };
 
+// ================= SAFE LOCAL STORAGE =================
+const getSafeLocalUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("eas_user_data") || "null");
+  } catch (e) {
+    console.error("LocalStorage corrupt:", e);
+    return null;
+  }
+};
+
+// ================= PROTECTED ROUTE =================
 const ProtectedRoute = ({ children }) => {
   const [user, loading] = useAuthState(auth);
-  const localUser = JSON.parse(localStorage.getItem("eas_user_data") || "null");
+  const localUser = getSafeLocalUser();
   const isVerified = localStorage.getItem("eas_verified") === "true";
   const location = useLocation();
-  if (loading) return <div className="h-screen flex items-center justify-center" style={{ background: PURPLE.bg }}><div className="text-purple-400 font-black animate-pulse tracking-[0.5em] text-[10px] uppercase">Connecting to EAS...</div></div>;
-  if (!user && !localUser) return <Navigate to="/register" state={{ from: location }} replace />;
-  if (!isVerified && location.pathname !== "/access-portal") return <Navigate to="/access-portal" replace />;
+
+  if (loading) {
+    return (
+      <div
+        className="h-screen flex items-center justify-center"
+        style={{ background: PURPLE.bg }}
+      >
+        <div className="text-purple-400 font-black animate-pulse tracking-[0.5em] text-[10px] uppercase">
+          Connecting to EAS...
+        </div>
+      </div>
+    );
+  }
+
+  // belum login
+  if (!user && !localUser) {
+    return <Navigate to="/register" state={{ from: location }} replace />;
+  }
+
+  // belum verifikasi
+  if (!isVerified && location.pathname !== "/access-portal") {
+    return <Navigate to="/access-portal" replace />;
+  }
+
   return children;
 };
 
+// ================= APP =================
 function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [user] = useAuthState(auth);
   const localUser = localStorage.getItem("eas_user_data");
 
-  useEffect(() => { setShowIntro(!localStorage.getItem("intro_viewed")); }, []);
-  useEffect(() => { document.body.style.background = PURPLE.bg; }, []);
+  // Intro logic (safe)
+  useEffect(() => {
+    const viewed = localStorage.getItem("intro_viewed");
+    setShowIntro(viewed !== "true");
+
+    // failsafe: kalau intro error → auto lanjut
+    const timer = setTimeout(() => {
+      setShowIntro(false);
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.background = PURPLE.bg;
+  }, []);
+
+  // global error guard
+  useEffect(() => {
+    window.onerror = function (msg, url, line, col, error) {
+      console.error("Global Error:", error);
+    };
+  }, []);
 
   const showUI = !showIntro && (user || localUser);
 
   return (
     <Router>
-      <div className="min-h-screen text-white selection:bg-purple-500" style={{ background: PURPLE.bg }}>
-        {showIntro && <Intro onFinish={() => { localStorage.setItem("intro_viewed","true"); setShowIntro(false); }} />}
+      <div
+        className="min-h-screen text-white selection:bg-purple-500"
+        style={{ background: PURPLE.bg }}
+      >
+        {/* INTRO */}
+        {showIntro && (
+          <Intro
+            onFinish={() => {
+              localStorage.setItem("intro_viewed", "true");
+              setShowIntro(false);
+            }}
+          />
+        )}
+
+        {/* MAIN APP */}
         <div className={showIntro ? "hidden" : "block"}>
           <Routes>
+            {/* PUBLIC */}
             <Route path="/register" element={<RegisterPortal />} />
             <Route path="/login" element={<LoginPortal />} />
-            <Route path="/access-portal" element={<ProtectedRoute><AccessPortal /></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
-            <Route path="/ai-quiz" element={<ProtectedRoute><GroqQuiz /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-            <Route path="/webinar" element={<ProtectedRoute><Webinar /></ProtectedRoute>} />
-            <Route path="/solar" element={<ProtectedRoute><SolarSystem /></ProtectedRoute>} />
-            <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
-            <Route path="/science" element={<ProtectedRoute><ScienceHub /></ProtectedRoute>} />
-            <Route path="/apply" element={<ProtectedRoute><ApplyForm /></ProtectedRoute>} />
-            <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+
+            {/* PROTECTED */}
+            <Route
+              path="/access-portal"
+              element={
+                <ProtectedRoute>
+                  <AccessPortal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <ProtectedRoute>
+                  <Library />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ai-quiz"
+              element={
+                <ProtectedRoute>
+                  <GroqQuiz />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webinar"
+              element={
+                <ProtectedRoute>
+                  <Webinar />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/solar"
+              element={
+                <ProtectedRoute>
+                  <SolarSystem />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/market"
+              element={
+                <ProtectedRoute>
+                  <Market />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/science"
+              element={
+                <ProtectedRoute>
+                  <ScienceHub />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apply"
+              element={
+                <ProtectedRoute>
+                  <ApplyForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/about"
+              element={
+                <ProtectedRoute>
+                  <About />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ADMIN (dibiarin sesuai request) */}
             <Route path="/admin" element={<AdminPanel />} />
+
+            {/* FALLBACK */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          { /* Navbar removed - all menu in Dashboard */ }
         </div>
       </div>
     </Router>
