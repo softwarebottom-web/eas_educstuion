@@ -8,6 +8,8 @@ import {
   Orbit,
   ChevronRight
 } from "lucide-react";
+import APODPage from "../component/APODPage";
+import ISSPage from "../component/ISSPage";
 import { playSound } from "../component/Intro";
 
 const FEATURES = [
