@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getNasaAPOD } from "../api/nasaApi";
-import { LogOut, Star, Brain, BookOpen, ShoppingBag, Globe2, MessageCircle, Radio, Telescope, FlaskConical, User, Settings, Shield, Zap, ChevronRight } from "lucide-react";
+import { LogOut, Star, Brain, BookOpen, ShoppingBag, Globe2, MessageCircle, Radio, Orbit, FlaskConical, User, Settings, Shield, Zap, ChevronRight } from "lucide-react";
 import AdminAuth from "../pages/AdminAuth";
 import { playSound } from "../component/Intro";
 import { getPoints } from "../pages/Market";
