@@ -8,7 +8,7 @@ import RegisterPortal from "./pages/RegisterPortal";
 import LoginPortal from "./pages/LoginPortal";
 import AccessPortal from "./pages/AccessPortal";
 import Dashboard from "./pages/Dashboard";
-import Library from "./pages/Library";
+import Library from "./pages/Libary";
 import GroqQuiz from "./pages/GroqQuiz";
 import About from "./pages/About";
 import Settings from "./pages/Settings";
@@ -47,7 +47,7 @@ function App() {
     <Router>
       <div className="min-h-screen text-white selection:bg-purple-500" style={{ background: PURPLE.bg }}>
         {showIntro && <Intro onFinish={() => { localStorage.setItem("intro_viewed","true"); setShowIntro(false); }} />}
-        <div className={showIntro ? "hidden" : "block pb-24"}>
+        <div className={showIntro ? "hidden" : "block"}>
           <Routes>
             <Route path="/register" element={<RegisterPortal />} />
             <Route path="/login" element={<LoginPortal />} />
@@ -66,7 +66,7 @@ function App() {
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          {showUI && <Navbar />}
+          { /* Navbar removed - all menu in Dashboard */ }
         </div>
       </div>
     </Router>
