@@ -5,6 +5,7 @@ import { collection, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from "
 import { Users, Trash2, ExternalLink, RefreshCcw, ShieldCheck, BookOpen, LogOut, CheckCircle, XCircle, Crown, KeyRound, ChevronDown, Link, Lock, Unlock, Shield, Radio } from "lucide-react";
 import AdminQuiz from "./AdminQuiz";
 import { AdminApplications, AdminWebinar, AdminLibraryManager } from "./AdminFeatures";
+import AdminSeleksi from "./AdminSeleksi";
 import { playSound } from "../component/Intro";
 
 const ROLES = ["member", "moderator", "admin", "owner"];
@@ -145,17 +146,17 @@ const AdminDashboard = () => {
     navigate("/", { replace: true });
   };
 
-  if (!role) return <div className="h-screen flex items-center justify-center bg-[#00050d] text-red-500 font-bold">Unauthorized</div>;
-  if (loading) return <div className="h-screen flex items-center justify-center bg-[#00050d] text-blue-500 font-bold">Loading Admin Panel...</div>;
+  if (!role) return <div className="h-screen flex items-center justify-center bg-[#06010f] text-red-500 font-bold">Unauthorized</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#06010f] text-purple-400 font-bold">Loading Admin Panel...</div>;
 
   return (
-    <div className="min-h-screen bg-[#00050d] text-white p-6 pb-32 font-mono">
+    <div className="min-h-screen text-white p-5 pb-32 font-mono" style={{ background:"linear-gradient(135deg,#06010f,#0a0218,#060115)" }}>
 
       {/* HEADER */}
-      <header className="flex justify-between mb-8 border-b border-blue-900 pb-4">
+      <header className="flex justify-between mb-6 border-b pb-4" style={{ borderColor:"rgba(120,80,220,0.2)" }}>
         <div>
-          <h1 className="text-xl font-black text-blue-500">ADMIN COMMAND CENTER</h1>
-          <div className="flex gap-2 mt-2 text-xs text-blue-300">
+          <h1 className="text-lg font-black bg-gradient-to-r from-purple-400 to-sky-400 bg-clip-text text-transparent">ADMIN COMMAND CENTER</h1>
+          <div className="flex gap-2 mt-1 text-xs text-purple-400">
             <ShieldCheck size={14} /> {role?.toUpperCase()}
           </div>
         </div>
@@ -174,11 +175,12 @@ const AdminDashboard = () => {
           { key: "applications", label: "Lamaran", icon: <Shield size={14} /> },
           { key: "webinar", label: "Webinar", icon: <Radio size={14} /> },
           { key: "library", label: "Library", icon: <BookOpen size={14} /> },
+          { key: "seleksi", label: "Seleksi", icon: <Shield size={14} /> },
         ].map((t) => (
           <button key={t.key}
             onClick={() => { playSound("click"); setTab(t.key); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition
-              ${tab === t.key ? "bg-blue-600 text-white" : "bg-gray-900 text-gray-500 hover:text-white"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${tab === t.key ? "text-white" : "bg-gray-900/50 text-gray-500"}`}
+            style={tab===t.key?{background:"linear-gradient(135deg,#7c3aed,#2563eb)"}:{}}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -297,6 +299,7 @@ const AdminDashboard = () => {
       {tab === "applications" && <AdminApplications role={role} />}
       {tab === "webinar" && <AdminWebinar adminId={adminId} role={role} />}
       {tab === "library" && <AdminLibraryManager />}
+      {tab === "seleksi" && <AdminSeleksi role={role} adminId={adminId} />}
 
       {/* MODAL SET ADMIN CODE */}
       {codeModal && (
